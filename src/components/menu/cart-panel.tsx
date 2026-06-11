@@ -18,7 +18,7 @@ type CartPanelProps = {
   totalAmount: number;
 };
 
-function buildWhatsAppHref(restaurant: Restaurant, lines: CartLine[], totalAmount: number) {
+function buildOrderMessage(lines: CartLine[], totalAmount: number) {
   const currency = lines[0]?.item.price.currency ?? "COP";
   const orderLines = lines
     .map((line) => {
@@ -32,8 +32,9 @@ function buildWhatsAppHref(restaurant: Restaurant, lines: CartLine[], totalAmoun
         currency,
       })}${addons}`;
     })
-    .join("\n");
-  const message = [
+    .join("\n\n");
+
+  return [
     "Hola, quiero hacer este pedido:",
     "",
     orderLines,
@@ -41,12 +42,22 @@ function buildWhatsAppHref(restaurant: Restaurant, lines: CartLine[], totalAmoun
     `Total estimado: ${formatMoney({ amount: totalAmount, currency })}`,
     "",
     "Nombre:",
-    "Direccion:",
-    "Metodo de pago:",
+    "Dirección:",
+    "Método de pago:",
   ].join("\n");
-  const separator = restaurant.whatsappUrl.includes("?") ? "&" : "?";
+}
 
-  return `${restaurant.whatsappUrl}${separator}text=${encodeURIComponent(message)}`;
+function buildWhatsAppHref(restaurant: Restaurant, lines: CartLine[], totalAmount: number) {
+  const whatsappUrl = restaurant.whatsappUrl.trim();
+  const separator = whatsappUrl.includes("?")
+    ? whatsappUrl.endsWith("?") || whatsappUrl.endsWith("&")
+      ? ""
+      : "&"
+    : "?";
+
+  return `${whatsappUrl}${separator}text=${encodeURIComponent(
+    buildOrderMessage(lines, totalAmount),
+  )}`;
 }
 
 export function CartPanel({
