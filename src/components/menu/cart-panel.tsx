@@ -5,6 +5,7 @@ import type { MenuTheme, Restaurant } from "@/types/menu";
 import { getLineUnitAmount, type CartLine } from "@/features/cart/use-cart";
 import { formatMoney } from "@/features/menus/format-money";
 import { cn } from "@/lib/utils/cn";
+import { buildColombianWhatsAppUrl } from "@/lib/whatsapp";
 
 type CartPanelProps = {
   isOpen: boolean;
@@ -48,16 +49,7 @@ function buildOrderMessage(lines: CartLine[], totalAmount: number) {
 }
 
 function buildWhatsAppHref(restaurant: Restaurant, lines: CartLine[], totalAmount: number) {
-  const whatsappUrl = restaurant.whatsappUrl.trim();
-  const separator = whatsappUrl.includes("?")
-    ? whatsappUrl.endsWith("?") || whatsappUrl.endsWith("&")
-      ? ""
-      : "&"
-    : "?";
-
-  return `${whatsappUrl}${separator}text=${encodeURIComponent(
-    buildOrderMessage(lines, totalAmount),
-  )}`;
+  return buildColombianWhatsAppUrl(restaurant.whatsappUrl, buildOrderMessage(lines, totalAmount));
 }
 
 export function CartPanel({

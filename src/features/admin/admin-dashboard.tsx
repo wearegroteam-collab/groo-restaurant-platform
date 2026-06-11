@@ -23,6 +23,7 @@ import { formatMoney } from "@/features/menus/format-money";
 import { logout, useAuth } from "@/features/auth/use-auth";
 import { useRestaurantsStore } from "@/features/restaurants/use-restaurant-store";
 import { uploadMenuImage } from "@/lib/supabase/storage";
+import { extractColombianMobile, isValidColombianMobile } from "@/lib/whatsapp";
 
 type AdminDashboardProps = {
   initialRestaurants: Restaurant[];
@@ -339,8 +340,18 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
       errors.googleMapsUrl = "La URL de Google Maps es obligatoria.";
     }
 
-    if (!restaurantForm.whatsappUrl.trim()) {
-      errors.whatsappUrl = "La URL de WhatsApp es obligatoria.";
+    const whatsappNumber = restaurantForm.whatsappUrl.trim();
+
+    if (!whatsappNumber) {
+      errors.whatsappUrl = "El WhatsApp es obligatorio.";
+    }
+
+    if (whatsappNumber && !/^\d+$/.test(whatsappNumber)) {
+      errors.whatsappUrl = "Ingresa solo numeros. No incluyas +57, espacios ni enlaces.";
+    }
+
+    if (whatsappNumber && !isValidColombianMobile(whatsappNumber)) {
+      errors.whatsappUrl = "El numero debe tener 10 digitos y empezar por 3.";
     }
 
     if (!restaurantForm.logoUrl.trim()) {
@@ -367,7 +378,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
             address: restaurantForm.address.trim(),
             logoUrl: restaurantForm.logoUrl.trim(),
             googleMapsUrl: restaurantForm.googleMapsUrl.trim(),
-            whatsappUrl: restaurantForm.whatsappUrl.trim(),
+            whatsappUrl: whatsappNumber,
             theme: restaurantForm.theme,
             banners: [],
             addonGroups: [],
@@ -391,7 +402,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
           address: restaurantForm.address.trim(),
           location: restaurantForm.address.trim(),
           googleMapsUrl: restaurantForm.googleMapsUrl.trim(),
-          whatsappUrl: restaurantForm.whatsappUrl.trim(),
+          whatsappUrl: whatsappNumber,
           logoUrl: restaurantForm.logoUrl.trim(),
           theme: restaurantForm.theme,
         }));
@@ -1146,14 +1157,23 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
                     }
                   />
                 </Field>
-                <Field error={restaurantErrors.whatsappUrl} label="WhatsApp URL" required>
+                <Field error={restaurantErrors.whatsappUrl} label="WhatsApp" required>
                   <input
                     className={inputClass}
+                    inputMode="numeric"
+                    maxLength={10}
+                    placeholder="3001234567"
                     value={restaurantForm.whatsappUrl}
                     onChange={(event) =>
-                      setRestaurantForm({ ...restaurantForm, whatsappUrl: event.target.value })
+                      setRestaurantForm({
+                        ...restaurantForm,
+                        whatsappUrl: event.target.value.replace(/\D/g, "").slice(0, 10),
+                      })
                     }
                   />
+                  <span className="text-xs font-normal leading-5 text-ink/55">
+                    Ingresa solo el numero celular colombiano. No incluyas +57, espacios ni enlaces.
+                  </span>
                 </Field>
                 <Field label="Estilo del menu">
                   <select
@@ -1819,7 +1839,7 @@ function useStateFromRestaurant(restaurant: Restaurant) {
     name: restaurant.name,
     address: restaurant.address,
     googleMapsUrl: restaurant.googleMapsUrl,
-    whatsappUrl: restaurant.whatsappUrl,
+    whatsappUrl: extractColombianMobile(restaurant.whatsappUrl),
     logoUrl: restaurant.logoUrl,
     theme: restaurant.theme,
   });
@@ -1830,7 +1850,7 @@ function useStateFromRestaurant(restaurant: Restaurant) {
       name: restaurant.name,
       address: restaurant.address,
       googleMapsUrl: restaurant.googleMapsUrl,
-      whatsappUrl: restaurant.whatsappUrl,
+      whatsappUrl: extractColombianMobile(restaurant.whatsappUrl),
       logoUrl: restaurant.logoUrl,
       theme: restaurant.theme,
     });
