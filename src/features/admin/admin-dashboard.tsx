@@ -83,6 +83,16 @@ type Toast = {
 };
 
 type FormErrors<T extends string> = Partial<Record<T, string>>;
+type AdminSection = "restaurant" | "categories" | "products" | "addons" | "banners" | "publicMenu";
+
+const adminSections: Array<{ id: AdminSection; label: string }> = [
+  { id: "restaurant", label: "Restaurante" },
+  { id: "categories", label: "Categorias" },
+  { id: "products", label: "Productos" },
+  { id: "addons", label: "Adiciones" },
+  { id: "banners", label: "Banners" },
+  { id: "publicMenu", label: "Menu publico" },
+];
 
 const emptyCategoryForm: CategoryForm = {
   name: "",
@@ -221,9 +231,20 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
   const [productCategoryFilter, setProductCategoryFilter] = useState("all");
   const [restaurantToDelete, setRestaurantToDelete] = useState<Restaurant | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [activeSection, setActiveSection] = useState<AdminSection>("restaurant");
 
   function updateRestaurant(updater: (restaurant: Restaurant) => Restaurant) {
     return updateRestaurantInStore(restaurant.id, updater);
+  }
+
+  function copyPublicMenuLink() {
+    const origin = window.location.origin;
+    const publicMenuUrl = `${origin}/${restaurant.slug}/menu`;
+
+    navigator.clipboard
+      .writeText(publicMenuUrl)
+      .then(() => showToast("Enlace copiado.", "success"))
+      .catch(() => showToast("No se pudo copiar el enlace.", "error"));
   }
 
   useEffect(() => {
@@ -1089,6 +1110,26 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
           </section>
         ) : null}
 
+        <nav className="sticky top-[88px] z-20 overflow-x-auto rounded-lg border border-ink/10 bg-white p-2 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex min-w-max gap-2">
+            {adminSections.map((section) => (
+              <button
+                className={`rounded-md px-4 py-2 text-sm font-bold transition ${
+                  activeSection === section.id
+                    ? "bg-ink text-white"
+                    : "text-ink/65 hover:bg-ink/5 hover:text-ink"
+                }`}
+                key={section.id}
+                onClick={() => setActiveSection(section.id)}
+                type="button"
+              >
+                {section.label}
+              </button>
+            ))}
+          </div>
+        </nav>
+
+        {activeSection === "restaurant" ? (
         <section className="grid gap-3 rounded-lg border border-ink/10 bg-white p-4 sm:grid-cols-[1fr_auto] sm:items-center">
           <div>
             <p className="text-sm font-semibold text-ink/60">Restaurante activo</p>
@@ -1105,8 +1146,9 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
             <Trash2 className="h-4 w-4" /> Eliminar restaurante
           </Button>
         </section>
+        ) : null}
 
-        {!isRestaurantCreateMode ? (
+        {activeSection === "publicMenu" && !isRestaurantCreateMode ? (
           <section className="grid gap-3 sm:grid-cols-3">
             <Metric label="Categorias" value={restaurant.menu.length} />
             <Metric label="Productos" value={totalProducts} />
@@ -1114,8 +1156,34 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
           </section>
         ) : null}
 
-        <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        {activeSection === "publicMenu" && !isRestaurantCreateMode ? (
+          <Panel title="Menu publico">
+            <div className="grid gap-4">
+              <div className="rounded-lg border border-ink/10 bg-brand-50/60 p-4">
+                <p className="text-sm font-semibold text-ink/60">Enlace publico</p>
+                <p className="mt-1 break-all font-bold">{`/${restaurant.slug}/menu`}</p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button asChild>
+                  <Link href={`/${restaurant.slug}/menu`}>
+                    Ver menu <ExternalLink className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button onClick={copyPublicMenuLink} variant="outline">
+                  Copiar enlace
+                </Button>
+              </div>
+              <div className="rounded-lg border border-dashed border-ink/15 bg-white p-5 text-sm text-ink/60">
+                Espacio reservado para QR del menu.
+              </div>
+            </div>
+          </Panel>
+        ) : null}
+
+        <section className="grid gap-6">
+          {activeSection === "restaurant" || activeSection === "categories" ? (
           <div className="grid content-start gap-6">
+            {activeSection === "restaurant" ? (
             <Panel
               title={isRestaurantCreateMode ? "Crear restaurante" : "Editar restaurante"}
             >
@@ -1219,8 +1287,9 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
                 </Button>
               </div>
             </Panel>
+            ) : null}
 
-            {!isRestaurantCreateMode ? (
+            {activeSection === "categories" && !isRestaurantCreateMode ? (
               <Panel title={categoryForm.id ? "Editar categoria" : "Crear categoria"}>
               <div className="grid gap-4">
                 <Field error={categoryErrors.name} label="Nombre" required>
@@ -1260,9 +1329,11 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
               </Panel>
             ) : null}
           </div>
+          ) : null}
 
-          {!isRestaurantCreateMode ? (
+          {!isRestaurantCreateMode && ["products", "addons", "banners"].includes(activeSection) ? (
             <div className="grid content-start gap-6">
+            {activeSection === "products" ? (
             <Panel title={productForm.id ? "Editar producto" : "Crear producto"}>
               <div className="grid gap-4 md:grid-cols-2">
                 <Field error={productErrors.categoryId} label="Categoria" required>
@@ -1403,7 +1474,9 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
                 </div>
               </div>
             </Panel>
+            ) : null}
 
+            {activeSection === "addons" ? (
             <Panel title="Adiciones">
               <div className="grid gap-5">
                 <div className="grid gap-4 md:grid-cols-2">
@@ -1599,7 +1672,9 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
                 </div>
               </div>
             </Panel>
+            ) : null}
 
+            {activeSection === "banners" ? (
             <Panel title={bannerForm.id ? "Editar banner" : "Gestion de banners"}>
               <div className="grid gap-4">
                 <div className="grid gap-4 md:grid-cols-2">
@@ -1691,17 +1766,49 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
                 </div>
               </div>
             </Panel>
+            ) : null}
             </div>
-          ) : (
+          ) : isRestaurantCreateMode && activeSection !== "restaurant" ? (
             <Panel title="Guarda el restaurante para continuar">
               <p className="text-sm leading-6 text-ink/65">
                 Despues de crear el restaurante podras agregar banners, categorias y productos.
               </p>
             </Panel>
-          )}
+          ) : null}
         </section>
 
-        {!isRestaurantCreateMode ? (
+        {activeSection === "categories" && !isRestaurantCreateMode ? (
+          <Panel title="Categorias">
+            <div className="grid gap-3">
+              {restaurant.menu.map((category) => (
+                <Row key={category.id}>
+                  <div className="min-w-0">
+                    <p className="font-bold">{category.name}</p>
+                    <p className="line-clamp-1 text-sm text-ink/60">{category.description}</p>
+                    <p className="text-xs font-semibold text-ink/45">
+                      {category.items.length} productos
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                    <Button onClick={() => editCategory(category)} variant="outline">
+                      <Pencil className="h-4 w-4" /> Editar
+                    </Button>
+                    <Button onClick={() => deleteCategory(category.id)} variant="outline">
+                      <Trash2 className="h-4 w-4" /> Eliminar
+                    </Button>
+                  </div>
+                </Row>
+              ))}
+              {!restaurant.menu.length ? (
+                <p className="rounded-md border border-dashed border-ink/15 p-4 text-sm text-ink/60">
+                  Todavia no hay categorias.
+                </p>
+              ) : null}
+            </div>
+          </Panel>
+        ) : null}
+
+        {activeSection === "products" && !isRestaurantCreateMode ? (
           <Panel title="Categorias y productos">
           <div className="grid gap-4">
             <div className="grid gap-3 rounded-lg border border-ink/10 bg-brand-50/60 p-4 md:grid-cols-[1fr_240px]">
