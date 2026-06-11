@@ -12,7 +12,6 @@ import {
   LogOut,
   Pencil,
   Plus,
-  RotateCcw,
   Save,
   Search,
   Trash2,
@@ -31,7 +30,7 @@ type AdminDashboardProps = {
 
 type RestaurantForm = Pick<
   Restaurant,
-  "slug" | "name" | "address" | "googleMapsUrl" | "whatsappUrl" | "logoUrl"
+  "slug" | "name" | "address" | "googleMapsUrl" | "whatsappUrl" | "logoUrl" | "theme"
 >;
 
 type CategoryForm = {
@@ -97,6 +96,7 @@ const emptyRestaurant: Restaurant = {
   logoUrl: "",
   googleMapsUrl: "",
   whatsappUrl: "",
+  theme: "light",
   banners: [],
   menu: [],
 };
@@ -150,7 +150,6 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
     error: restaurantsError,
     isLoading: isLoadingRestaurants,
     restaurants,
-    setRestaurants,
     updateRestaurant: updateRestaurantInStore,
     upsertRestaurant,
   } = useRestaurantsStore();
@@ -170,13 +169,16 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
   const [bannerForm, setBannerForm] = useState(emptyBannerForm);
   const [restaurantErrors, setRestaurantErrors] = useState<FormErrors<keyof RestaurantForm>>({});
   const [categoryErrors, setCategoryErrors] = useState<FormErrors<"name">>({});
-  const [productErrors, setProductErrors] =
-    useState<FormErrors<"categoryId" | "name" | "price" | "imageUrl">>({});
+  const [productErrors, setProductErrors] = useState<FormErrors<"categoryId" | "name" | "price">>(
+    {},
+  );
   const [bannerErrors, setBannerErrors] = useState<FormErrors<"title" | "imageUrl">>({});
   const [savingTarget, setSavingTarget] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [productSearch, setProductSearch] = useState("");
   const [productCategoryFilter, setProductCategoryFilter] = useState("all");
+  const [restaurantToDelete, setRestaurantToDelete] = useState<Restaurant | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   function updateRestaurant(updater: (restaurant: Restaurant) => Restaurant) {
     return updateRestaurantInStore(restaurant.id, updater);
@@ -325,6 +327,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
             logoUrl: restaurantForm.logoUrl.trim(),
             googleMapsUrl: restaurantForm.googleMapsUrl.trim(),
             whatsappUrl: restaurantForm.whatsappUrl.trim(),
+            theme: restaurantForm.theme,
             banners: [],
             menu: [],
           };
@@ -348,10 +351,45 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
           googleMapsUrl: restaurantForm.googleMapsUrl.trim(),
           whatsappUrl: restaurantForm.whatsappUrl.trim(),
           logoUrl: restaurantForm.logoUrl.trim(),
+          theme: restaurantForm.theme,
         }));
       },
       isRestaurantCreateMode ? "Restaurante creado." : "Cambios guardados.",
     );
+  }
+
+  async function confirmDeleteRestaurant() {
+    if (!restaurantToDelete || deleteConfirmation !== "BORRAR") {
+      return;
+    }
+
+    setSavingTarget("delete-restaurant");
+
+    try {
+      const nextRestaurants = await deleteRestaurant(restaurantToDelete.id);
+      const nextSelectedRestaurant = nextRestaurants.find(
+        (currentRestaurant) => currentRestaurant.id !== restaurantToDelete.id,
+      );
+
+      setSelectedRestaurantId(nextSelectedRestaurant?.id ?? "");
+      setIsCreatingRestaurant(true);
+      setRestaurantForm({
+        slug: "",
+        name: "",
+        address: "",
+        googleMapsUrl: "",
+        whatsappUrl: "",
+        logoUrl: "",
+        theme: "light",
+      });
+      setRestaurantToDelete(null);
+      setDeleteConfirmation("");
+      showToast("Restaurante eliminado.", "success");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "No se pudo eliminar el restaurante.", "error");
+    } finally {
+      setSavingTarget(null);
+    }
   }
 
   function saveCategory() {
@@ -438,7 +476,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
 
   function saveProduct() {
     const categoryId = productForm.categoryId || restaurant.menu[0]?.id;
-    const errors: FormErrors<"categoryId" | "name" | "price" | "imageUrl"> = {};
+    const errors: FormErrors<"categoryId" | "name" | "price"> = {};
 
     if (!categoryId) {
       errors.categoryId = "Selecciona una categoria.";
@@ -450,10 +488,6 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
 
     if (!productForm.price || Number(productForm.price) <= 0) {
       errors.price = "Ingresa un precio mayor a cero.";
-    }
-
-    if (!productForm.imageUrl.trim()) {
-      errors.imageUrl = "Selecciona una imagen del producto.";
     }
 
     setProductErrors(errors);
@@ -536,7 +570,6 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
 
     try {
       const publicUrl = await uploadMenuImage(file, `${restaurant.slug || "restaurant"}/products`);
-      setProductErrors((currentErrors) => ({ ...currentErrors, imageUrl: undefined }));
       setProductForm((currentForm) => ({
         ...currentForm,
         imageUrl: publicUrl,
@@ -769,6 +802,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
                   googleMapsUrl: "",
                   whatsappUrl: "",
                   logoUrl: "",
+                  theme: "light",
                 });
                 setIsCreatingRestaurant(true);
               }}
@@ -800,53 +834,20 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
           </section>
         ) : null}
 
-        <section className="grid gap-3 rounded-lg border border-ink/10 bg-white p-4 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+        <section className="grid gap-3 rounded-lg border border-ink/10 bg-white p-4 sm:grid-cols-[1fr_auto] sm:items-center">
           <div>
             <p className="text-sm font-semibold text-ink/60">Restaurante activo</p>
             <p className="font-bold">/{restaurant.slug}/menu</p>
           </div>
           <Button
-            onClick={async () => {
-              if (restaurants.length <= 1) {
-                showToast("Debe existir al menos un restaurante.", "error");
-                return;
-              }
-
-              if (!window.confirm(`Eliminar el restaurante "${restaurant.name}"?`)) {
-                return;
-              }
-
-              try {
-                await deleteRestaurant(restaurant.id);
-                showToast("Restaurante eliminado.", "success");
-              } catch (error) {
-                showToast(
-                  error instanceof Error ? error.message : "No se pudo eliminar el restaurante.",
-                  "error",
-                );
-              }
+            disabled={isRestaurantCreateMode}
+            onClick={() => {
+              setRestaurantToDelete(restaurant);
+              setDeleteConfirmation("");
             }}
             variant="outline"
           >
             <Trash2 className="h-4 w-4" /> Eliminar restaurante
-          </Button>
-          <Button
-            onClick={async () => {
-              try {
-                const restoredRestaurants = await setRestaurants(initialRestaurants);
-                setSelectedRestaurantId(restoredRestaurants[0]?.id ?? "");
-                setIsCreatingRestaurant(false);
-                showToast("Datos demo restaurados.", "success");
-              } catch (error) {
-                showToast(
-                  error instanceof Error ? error.message : "No se pudieron restaurar los datos demo.",
-                  "error",
-                );
-              }
-            }}
-            variant="outline"
-          >
-            <RotateCcw className="h-4 w-4" /> Restaurar demo
           </Button>
         </section>
 
@@ -909,6 +910,21 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
                       setRestaurantForm({ ...restaurantForm, whatsappUrl: event.target.value })
                     }
                   />
+                </Field>
+                <Field label="Estilo del menu">
+                  <select
+                    className={inputClass}
+                    value={restaurantForm.theme}
+                    onChange={(event) =>
+                      setRestaurantForm({
+                        ...restaurantForm,
+                        theme: event.target.value === "dark" ? "dark" : "light",
+                      })
+                    }
+                  >
+                    <option value="light">Claro</option>
+                    <option value="dark">Oscuro</option>
+                  </select>
                 </Field>
                 <Field error={restaurantErrors.logoUrl} label="Logo URL" required>
                   <input
@@ -1031,7 +1047,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
                 </Field>
                 <div className="grid gap-2 text-sm font-semibold text-ink">
                   <span>
-                    Imagen del producto <span className="text-red-600">*</span>
+                    Imagen del producto
                   </span>
                   <label className="flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-ink/20 bg-white px-3 py-2 text-sm transition hover:border-brand-500 hover:bg-brand-50">
                     <ImagePlus className="h-4 w-4 text-brand-600" />
@@ -1054,12 +1070,9 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
                     </div>
                   ) : (
                     <p className="rounded-md border border-dashed border-ink/15 p-3 text-xs font-normal leading-5 text-ink/55">
-                      Selecciona una imagen local. Se subira a Supabase Storage.
+                      Puedes guardar el producto sin imagen. El menu mostrara un placeholder.
                     </p>
                   )}
-                  {productErrors.imageUrl ? (
-                    <span className="text-xs font-medium text-red-600">{productErrors.imageUrl}</span>
-                  ) : null}
                 </div>
                 <label className="flex items-center gap-3 self-end rounded-md border border-ink/10 bg-white px-3 py-3 text-sm font-semibold">
                   <input
@@ -1289,6 +1302,51 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
           </Panel>
         ) : null}
       </Container>
+      {restaurantToDelete ? (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-ink/55 p-4">
+          <section className="w-full max-w-md rounded-lg border border-ink/10 bg-white p-5 shadow-soft">
+            <div className="space-y-2">
+              <p className="text-sm font-bold uppercase tracking-[0.14em] text-red-600">
+                Confirmar eliminacion
+              </p>
+              <h2 className="text-xl font-bold">Eliminar {restaurantToDelete.name}</h2>
+              <p className="text-sm leading-6 text-ink/65">
+                Esta accion eliminara el restaurante y todos sus banners, categorias y productos.
+                Escribe <span className="font-bold text-ink">BORRAR</span> para continuar.
+              </p>
+            </div>
+
+            <input
+              className={`${inputClass} mt-4`}
+              placeholder="BORRAR"
+              value={deleteConfirmation}
+              onChange={(event) => setDeleteConfirmation(event.target.value)}
+            />
+
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                disabled={savingTarget === "delete-restaurant"}
+                onClick={() => {
+                  setRestaurantToDelete(null);
+                  setDeleteConfirmation("");
+                }}
+                variant="outline"
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={
+                  deleteConfirmation !== "BORRAR" || savingTarget === "delete-restaurant"
+                }
+                onClick={confirmDeleteRestaurant}
+              >
+                <Trash2 className="h-4 w-4" />
+                {savingTarget === "delete-restaurant" ? "Eliminando..." : "Eliminar definitivamente"}
+              </Button>
+            </div>
+          </section>
+        </div>
+      ) : null}
       <ToastStack toasts={toasts} />
     </main>
   );
@@ -1302,6 +1360,7 @@ function useStateFromRestaurant(restaurant: Restaurant) {
     googleMapsUrl: restaurant.googleMapsUrl,
     whatsappUrl: restaurant.whatsappUrl,
     logoUrl: restaurant.logoUrl,
+    theme: restaurant.theme,
   });
 
   useEffect(() => {
@@ -1312,6 +1371,7 @@ function useStateFromRestaurant(restaurant: Restaurant) {
       googleMapsUrl: restaurant.googleMapsUrl,
       whatsappUrl: restaurant.whatsappUrl,
       logoUrl: restaurant.logoUrl,
+      theme: restaurant.theme,
     });
   }, [
     restaurant.address,
@@ -1320,6 +1380,7 @@ function useStateFromRestaurant(restaurant: Restaurant) {
     restaurant.logoUrl,
     restaurant.name,
     restaurant.slug,
+    restaurant.theme,
     restaurant.whatsappUrl,
   ]);
 

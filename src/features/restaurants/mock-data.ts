@@ -12,6 +12,7 @@ export const restaurants: Restaurant[] = [
       "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=256&q=80",
     googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Hangar+Gastrobar+San+Andres",
     whatsappUrl: "https://wa.me/573001112233",
+    theme: "light",
     banners: [
       {
         id: "banner_burger",
@@ -117,6 +118,7 @@ export const restaurants: Restaurant[] = [
       "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=256&q=80",
     googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Origen+Cocina+Local+San+Andres",
     whatsappUrl: "https://wa.me/573009998877",
+    theme: "light",
     banners: [
       {
         id: "banner_origen_1",
@@ -189,6 +191,7 @@ export const restaurants: Restaurant[] = [
       "https://images.unsplash.com/photo-1572116469696-31de0f17cc34?auto=format&fit=crop&w=256&q=80",
     googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Cocobar+San+Andres",
     whatsappUrl: "https://wa.me/573005554433",
+    theme: "light",
     banners: [
       {
         id: "banner_cocobar_1",

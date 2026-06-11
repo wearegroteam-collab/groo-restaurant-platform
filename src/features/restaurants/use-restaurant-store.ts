@@ -17,6 +17,7 @@ type RestaurantRow = {
   address: string;
   whatsapp_url: string;
   google_maps_url: string;
+  theme: "light" | "dark" | null;
   user_id: string | null;
 };
 
@@ -75,7 +76,7 @@ function toRestaurant(
             amount: product.price,
             currency: product.currency,
           },
-          imageUrl: product.image_url ?? DEFAULT_IMAGE_URL,
+          imageUrl: product.image_url ?? "",
           isAvailable: product.is_available,
           tags: product.tags,
         })),
@@ -91,6 +92,7 @@ function toRestaurant(
     logoUrl: restaurant.logo_url ?? DEFAULT_IMAGE_URL,
     googleMapsUrl: restaurant.google_maps_url,
     whatsappUrl: restaurant.whatsapp_url,
+    theme: restaurant.theme ?? "light",
     banners: banners
       .filter((banner) => banner.restaurant_id === restaurant.id)
       .sort((first, second) => first.sort_order - second.sort_order)
@@ -113,6 +115,7 @@ function toRestaurantInsert(restaurant: Restaurant) {
     address: restaurant.address,
     whatsapp_url: restaurant.whatsappUrl,
     google_maps_url: restaurant.googleMapsUrl,
+    theme: restaurant.theme,
   };
 }
 
@@ -125,6 +128,7 @@ function toRestaurantUpdate(restaurant: Restaurant) {
     address: restaurant.address,
     whatsapp_url: restaurant.whatsappUrl,
     google_maps_url: restaurant.googleMapsUrl,
+    theme: restaurant.theme,
   };
 }
 
@@ -244,7 +248,7 @@ async function replaceRestaurantGraph(restaurant: Restaurant, userId?: string) {
           description: item.description,
           price: item.price.amount,
           currency: item.price.currency,
-          image_url: item.imageUrl,
+          image_url: item.imageUrl.trim() || null,
           tags: item.tags ?? [],
           is_available: item.isAvailable,
           sort_order: productIndex,

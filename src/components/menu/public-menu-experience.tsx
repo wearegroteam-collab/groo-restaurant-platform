@@ -9,6 +9,7 @@ import { MenuCategory } from "@/components/menu/menu-category";
 import { RestaurantHeader } from "@/components/menu/restaurant-header";
 import { WhatsAppFab } from "@/components/menu/whatsapp-fab";
 import { useRestaurantBySlug } from "@/features/restaurants/use-restaurant-store";
+import { cn } from "@/lib/utils/cn";
 
 type PublicMenuExperienceProps = {
   initialRestaurants: Restaurant[];
@@ -68,16 +69,23 @@ export function PublicMenuExperience({
     );
   }
 
+  const isDark = currentRestaurant.theme === "dark";
+
   return (
-    <main className="min-h-screen bg-[#f8faf3] pb-24">
+    <main
+      className={cn(
+        "min-h-screen pb-24",
+        isDark ? "bg-[#0c120f] text-white" : "bg-[#f8faf3] text-ink",
+      )}
+    >
       <BannerSlider banners={currentRestaurant.banners} />
-      <FeaturedPromotions restaurant={currentRestaurant} />
-      <RestaurantHeader restaurant={currentRestaurant} />
-      <CategoryNav categories={currentRestaurant.menu} />
+      <FeaturedPromotions restaurant={currentRestaurant} theme={currentRestaurant.theme} />
+      <RestaurantHeader restaurant={currentRestaurant} theme={currentRestaurant.theme} />
+      <CategoryNav categories={currentRestaurant.menu} theme={currentRestaurant.theme} />
 
       <Container className="grid gap-9 py-6">
         {currentRestaurant.menu.map((category) => (
-          <MenuCategory category={category} key={category.id} />
+          <MenuCategory category={category} key={category.id} theme={currentRestaurant.theme} />
         ))}
       </Container>
 

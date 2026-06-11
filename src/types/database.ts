@@ -38,6 +38,7 @@ export type Database = {
           address: string;
           whatsapp_url: string;
           google_maps_url: string;
+          theme: "light" | "dark";
           user_id: string | null;
           created_at: string;
           updated_at: string;
@@ -51,6 +52,7 @@ export type Database = {
           address: string;
           whatsapp_url: string;
           google_maps_url: string;
+          theme?: "light" | "dark";
           user_id?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -63,6 +65,7 @@ export type Database = {
           address?: string;
           whatsapp_url?: string;
           google_maps_url?: string;
+          theme?: "light" | "dark";
           user_id?: string | null;
           updated_at?: string;
         };

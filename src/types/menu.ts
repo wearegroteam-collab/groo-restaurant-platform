@@ -20,6 +20,8 @@ export type MenuBanner = {
   imageUrl: string;
 };
 
+export type MenuTheme = "light" | "dark";
+
 export type MenuCategory = {
   id: string;
   name: string;
@@ -37,6 +39,7 @@ export type Restaurant = {
   logoUrl: string;
   googleMapsUrl: string;
   whatsappUrl: string;
+  theme: MenuTheme;
   banners: MenuBanner[];
   menu: MenuCategory[];
 };

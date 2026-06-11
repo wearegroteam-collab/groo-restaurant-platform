@@ -18,6 +18,7 @@ create table if not exists public.restaurants (
   address text not null,
   whatsapp_url text not null,
   google_maps_url text not null,
+  theme text not null default 'light' check (theme in ('light', 'dark')),
   owner_id uuid references public.users(id) on delete set null,
   user_id uuid references auth.users(id) on delete cascade,
   created_at timestamptz not null default now(),
@@ -26,6 +27,22 @@ create table if not exists public.restaurants (
 
 alter table public.restaurants
 add column if not exists user_id uuid references auth.users(id) on delete cascade;
+
+alter table public.restaurants
+add column if not exists theme text not null default 'light';
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'restaurants_theme_check'
+      and conrelid = 'public.restaurants'::regclass
+  ) then
+    alter table public.restaurants
+    add constraint restaurants_theme_check check (theme in ('light', 'dark'));
+  end if;
+end $$;
 
 create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),

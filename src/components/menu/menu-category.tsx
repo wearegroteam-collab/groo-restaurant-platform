@@ -1,11 +1,15 @@
-import type { MenuCategory as MenuCategoryType } from "@/types/menu";
+import type { MenuCategory as MenuCategoryType, MenuTheme } from "@/types/menu";
 import { MenuItemCard } from "@/components/menu/menu-item-card";
+import { cn } from "@/lib/utils/cn";
 
 type MenuCategoryProps = {
   category: MenuCategoryType;
+  theme?: MenuTheme;
 };
 
-export function MenuCategory({ category }: MenuCategoryProps) {
+export function MenuCategory({ category, theme = "light" }: MenuCategoryProps) {
+  const isDark = theme === "dark";
+
   return (
     <section
       className="scroll-mt-28 space-y-4"
@@ -13,16 +17,18 @@ export function MenuCategory({ category }: MenuCategoryProps) {
       id={`category-${category.id}`}
     >
       <div>
-        <h2 className="text-2xl font-bold" id={`${category.id}-title`}>
+        <h2 className={cn("text-2xl font-bold", isDark && "text-white")} id={`${category.id}-title`}>
           {category.name}
         </h2>
         {category.description ? (
-          <p className="mt-1 text-sm leading-6 text-ink/65">{category.description}</p>
+          <p className={cn("mt-1 text-sm leading-6", isDark ? "text-white/62" : "text-ink/65")}>
+            {category.description}
+          </p>
         ) : null}
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
         {category.items.map((item, index) => (
-          <MenuItemCard index={index} item={item} key={item.id} />
+          <MenuItemCard index={index} item={item} key={item.id} theme={theme} />
         ))}
       </div>
     </section>

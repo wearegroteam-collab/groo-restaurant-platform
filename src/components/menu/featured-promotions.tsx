@@ -1,13 +1,16 @@
-import type { Restaurant } from "@/types/menu";
+import type { MenuTheme, Restaurant } from "@/types/menu";
 import { formatMoney } from "@/features/menus/format-money";
 import { Container } from "@/components/layout/container";
 import { ProductImage } from "@/components/menu/product-image";
+import { cn } from "@/lib/utils/cn";
 
 type FeaturedPromotionsProps = {
   restaurant: Restaurant;
+  theme?: MenuTheme;
 };
 
-export function FeaturedPromotions({ restaurant }: FeaturedPromotionsProps) {
+export function FeaturedPromotions({ restaurant, theme = "light" }: FeaturedPromotionsProps) {
+  const isDark = theme === "dark";
   const promotions = restaurant.menu
     .flatMap((category) =>
       category.items.map((item) => ({
@@ -24,14 +27,14 @@ export function FeaturedPromotions({ restaurant }: FeaturedPromotionsProps) {
   }
 
   return (
-    <section className="bg-[#f8faf3] py-4">
+    <section className={cn("py-4", isDark ? "bg-[#0c120f]" : "bg-[#f8faf3]")}>
       <Container className="space-y-3">
         <div className="flex items-end justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-600">
               Promociones
             </p>
-            <h2 className="text-xl font-bold">Destacados de hoy</h2>
+            <h2 className={cn("text-xl font-bold", isDark && "text-white")}>Destacados de hoy</h2>
           </div>
         </div>
 
@@ -48,6 +51,7 @@ export function FeaturedPromotions({ restaurant }: FeaturedPromotionsProps) {
                   fill
                   sizes="240px"
                   src={item.imageUrl}
+                  theme={theme}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/35 to-transparent" />
               </div>
