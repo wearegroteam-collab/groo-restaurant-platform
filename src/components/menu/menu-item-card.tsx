@@ -1,0 +1,57 @@
+import type { MenuItem } from "@/types/menu";
+import { formatMoney } from "@/features/menus/format-money";
+import { cn } from "@/lib/utils/cn";
+import { ProductImage } from "@/components/menu/product-image";
+
+type MenuItemCardProps = {
+  item: MenuItem;
+  index?: number;
+};
+
+export function MenuItemCard({ item, index = 0 }: MenuItemCardProps) {
+  return (
+    <article
+      className={cn(
+        "animate-menu-item-enter flex overflow-hidden rounded-lg border border-ink/10 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-soft",
+        !item.isAvailable && "bg-white/75",
+      )}
+      style={{ animationDelay: `${Math.min(index * 70, 420)}ms` }}
+    >
+      <div className="relative h-auto min-h-32 w-32 shrink-0 bg-ink/5 sm:w-40">
+        <ProductImage
+          alt={item.name}
+          className={cn("h-full w-full object-cover", !item.isAvailable && "grayscale")}
+          fill
+          sizes="(min-width: 640px) 160px, 128px"
+          src={item.imageUrl}
+        />
+        <span
+          className={cn(
+            "absolute left-2 top-2 rounded-full px-2.5 py-1 text-[11px] font-bold shadow-sm",
+            item.isAvailable ? "bg-brand-100 text-brand-900" : "bg-white text-ink/65",
+          )}
+        >
+          {item.isAvailable ? "Disponible" : "No disponible"}
+        </span>
+      </div>
+
+      <div className="flex min-w-0 flex-1 flex-col justify-between gap-3 p-4">
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-bold leading-tight sm:text-lg">{item.name}</h3>
+            {item.tags?.map((tag) => (
+              <span
+                className="rounded-full bg-ink/5 px-2 py-0.5 text-xs font-semibold text-ink/65"
+                key={tag}
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+          <p className="line-clamp-2 text-sm leading-5 text-ink/65">{item.description}</p>
+        </div>
+        <p className="text-lg font-bold text-ink">{formatMoney(item.price)}</p>
+      </div>
+    </article>
+  );
+}

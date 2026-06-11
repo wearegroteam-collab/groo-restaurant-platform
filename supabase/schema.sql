@@ -1,0 +1,238 @@
+create extension if not exists "pgcrypto";
+
+create table if not exists public.users (
+  id uuid primary key default gen_random_uuid(),
+  email text not null unique,
+  name text,
+  role text not null default 'manager' check (role in ('admin', 'manager')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.restaurants (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  name text not null,
+  description text,
+  logo_url text,
+  address text not null,
+  whatsapp_url text not null,
+  google_maps_url text not null,
+  owner_id uuid references public.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.categories (
+  id uuid primary key default gen_random_uuid(),
+  restaurant_id uuid not null references public.restaurants(id) on delete cascade,
+  name text not null,
+  description text,
+  sort_order integer not null default 0,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.products (
+  id uuid primary key default gen_random_uuid(),
+  restaurant_id uuid not null references public.restaurants(id) on delete cascade,
+  category_id uuid not null references public.categories(id) on delete cascade,
+  name text not null,
+  description text,
+  price integer not null check (price >= 0),
+  currency text not null default 'COP' check (currency in ('COP', 'USD')),
+  image_url text,
+  tags text[] not null default '{}',
+  is_available boolean not null default true,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.banners (
+  id uuid primary key default gen_random_uuid(),
+  restaurant_id uuid not null references public.restaurants(id) on delete cascade,
+  title text not null,
+  subtitle text,
+  image_url text not null,
+  sort_order integer not null default 0,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists restaurants_slug_idx on public.restaurants(slug);
+create index if not exists categories_restaurant_id_sort_order_idx
+  on public.categories(restaurant_id, sort_order);
+create index if not exists products_restaurant_id_category_id_sort_order_idx
+  on public.products(restaurant_id, category_id, sort_order);
+create index if not exists banners_restaurant_id_sort_order_idx
+  on public.banners(restaurant_id, sort_order);
+
+create or replace function public.set_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists set_users_updated_at on public.users;
+create trigger set_users_updated_at
+before update on public.users
+for each row execute function public.set_updated_at();
+
+drop trigger if exists set_restaurants_updated_at on public.restaurants;
+create trigger set_restaurants_updated_at
+before update on public.restaurants
+for each row execute function public.set_updated_at();
+
+drop trigger if exists set_categories_updated_at on public.categories;
+create trigger set_categories_updated_at
+before update on public.categories
+for each row execute function public.set_updated_at();
+
+drop trigger if exists set_products_updated_at on public.products;
+create trigger set_products_updated_at
+before update on public.products
+for each row execute function public.set_updated_at();
+
+drop trigger if exists set_banners_updated_at on public.banners;
+create trigger set_banners_updated_at
+before update on public.banners
+for each row execute function public.set_updated_at();
+
+alter table public.users enable row level security;
+alter table public.restaurants enable row level security;
+alter table public.categories enable row level security;
+alter table public.products enable row level security;
+alter table public.banners enable row level security;
+
+drop policy if exists "Public can read restaurants" on public.restaurants;
+create policy "Public can read restaurants"
+on public.restaurants for select
+using (true);
+
+drop policy if exists "Public can read active categories" on public.categories;
+create policy "Public can read active categories"
+on public.categories for select
+using (is_active = true);
+
+drop policy if exists "Public can read products" on public.products;
+create policy "Public can read products"
+on public.products for select
+using (true);
+
+drop policy if exists "Public can read active banners" on public.banners;
+create policy "Public can read active banners"
+on public.banners for select
+using (is_active = true);
+
+-- MVP policies while the app still uses mock login instead of Supabase Auth.
+-- Replace these policies with authenticated owner/team checks before production.
+drop policy if exists "MVP can insert users" on public.users;
+create policy "MVP can insert users"
+on public.users for insert
+with check (true);
+
+drop policy if exists "MVP can update users" on public.users;
+create policy "MVP can update users"
+on public.users for update
+using (true)
+with check (true);
+
+drop policy if exists "MVP can delete users" on public.users;
+create policy "MVP can delete users"
+on public.users for delete
+using (true);
+
+drop policy if exists "MVP can insert restaurants" on public.restaurants;
+create policy "MVP can insert restaurants"
+on public.restaurants for insert
+with check (true);
+
+drop policy if exists "MVP can update restaurants" on public.restaurants;
+create policy "MVP can update restaurants"
+on public.restaurants for update
+using (true)
+with check (true);
+
+drop policy if exists "MVP can delete restaurants" on public.restaurants;
+create policy "MVP can delete restaurants"
+on public.restaurants for delete
+using (true);
+
+drop policy if exists "MVP can insert categories" on public.categories;
+create policy "MVP can insert categories"
+on public.categories for insert
+with check (true);
+
+drop policy if exists "MVP can update categories" on public.categories;
+create policy "MVP can update categories"
+on public.categories for update
+using (true)
+with check (true);
+
+drop policy if exists "MVP can delete categories" on public.categories;
+create policy "MVP can delete categories"
+on public.categories for delete
+using (true);
+
+drop policy if exists "MVP can insert products" on public.products;
+create policy "MVP can insert products"
+on public.products for insert
+with check (true);
+
+drop policy if exists "MVP can update products" on public.products;
+create policy "MVP can update products"
+on public.products for update
+using (true)
+with check (true);
+
+drop policy if exists "MVP can delete products" on public.products;
+create policy "MVP can delete products"
+on public.products for delete
+using (true);
+
+drop policy if exists "MVP can insert banners" on public.banners;
+create policy "MVP can insert banners"
+on public.banners for insert
+with check (true);
+
+drop policy if exists "MVP can update banners" on public.banners;
+create policy "MVP can update banners"
+on public.banners for update
+using (true)
+with check (true);
+
+drop policy if exists "MVP can delete banners" on public.banners;
+create policy "MVP can delete banners"
+on public.banners for delete
+using (true);
+
+insert into storage.buckets (id, name, public)
+values ('menu-images', 'menu-images', true)
+on conflict (id) do update
+set public = excluded.public;
+
+drop policy if exists "Public can read menu images" on storage.objects;
+create policy "Public can read menu images"
+on storage.objects for select
+using (bucket_id = 'menu-images');
+
+drop policy if exists "MVP can upload menu images" on storage.objects;
+create policy "MVP can upload menu images"
+on storage.objects for insert
+with check (bucket_id = 'menu-images');
+
+drop policy if exists "MVP can update menu images" on storage.objects;
+create policy "MVP can update menu images"
+on storage.objects for update
+using (bucket_id = 'menu-images')
+with check (bucket_id = 'menu-images');
+
+drop policy if exists "MVP can delete menu images" on storage.objects;
+create policy "MVP can delete menu images"
+on storage.objects for delete
+using (bucket_id = 'menu-images');
