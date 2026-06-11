@@ -19,9 +19,13 @@ create table if not exists public.restaurants (
   whatsapp_url text not null,
   google_maps_url text not null,
   owner_id uuid references public.users(id) on delete set null,
+  user_id uuid references auth.users(id) on delete cascade,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.restaurants
+add column if not exists user_id uuid references auth.users(id) on delete cascade;
 
 create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
@@ -129,87 +133,166 @@ create policy "Public can read active banners"
 on public.banners for select
 using (is_active = true);
 
--- MVP policies while the app still uses mock login instead of Supabase Auth.
--- Replace these policies with authenticated owner/team checks before production.
-drop policy if exists "MVP can insert users" on public.users;
-create policy "MVP can insert users"
-on public.users for insert
-with check (true);
-
-drop policy if exists "MVP can update users" on public.users;
-create policy "MVP can update users"
-on public.users for update
-using (true)
-with check (true);
-
-drop policy if exists "MVP can delete users" on public.users;
-create policy "MVP can delete users"
-on public.users for delete
-using (true);
-
 drop policy if exists "MVP can insert restaurants" on public.restaurants;
-create policy "MVP can insert restaurants"
-on public.restaurants for insert
-with check (true);
-
 drop policy if exists "MVP can update restaurants" on public.restaurants;
-create policy "MVP can update restaurants"
-on public.restaurants for update
-using (true)
-with check (true);
-
 drop policy if exists "MVP can delete restaurants" on public.restaurants;
-create policy "MVP can delete restaurants"
-on public.restaurants for delete
-using (true);
-
 drop policy if exists "MVP can insert categories" on public.categories;
-create policy "MVP can insert categories"
-on public.categories for insert
-with check (true);
-
 drop policy if exists "MVP can update categories" on public.categories;
-create policy "MVP can update categories"
-on public.categories for update
-using (true)
-with check (true);
-
 drop policy if exists "MVP can delete categories" on public.categories;
-create policy "MVP can delete categories"
-on public.categories for delete
-using (true);
-
 drop policy if exists "MVP can insert products" on public.products;
-create policy "MVP can insert products"
-on public.products for insert
-with check (true);
-
 drop policy if exists "MVP can update products" on public.products;
-create policy "MVP can update products"
-on public.products for update
-using (true)
-with check (true);
-
 drop policy if exists "MVP can delete products" on public.products;
-create policy "MVP can delete products"
-on public.products for delete
-using (true);
-
 drop policy if exists "MVP can insert banners" on public.banners;
-create policy "MVP can insert banners"
-on public.banners for insert
-with check (true);
-
 drop policy if exists "MVP can update banners" on public.banners;
-create policy "MVP can update banners"
-on public.banners for update
-using (true)
-with check (true);
-
 drop policy if exists "MVP can delete banners" on public.banners;
-create policy "MVP can delete banners"
+
+drop policy if exists "Owners can insert restaurants" on public.restaurants;
+create policy "Owners can insert restaurants"
+on public.restaurants for insert
+to authenticated
+with check (auth.uid() = user_id);
+
+drop policy if exists "Owners can update restaurants" on public.restaurants;
+create policy "Owners can update restaurants"
+on public.restaurants for update
+to authenticated
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+drop policy if exists "Owners can delete restaurants" on public.restaurants;
+create policy "Owners can delete restaurants"
+on public.restaurants for delete
+to authenticated
+using (auth.uid() = user_id);
+
+drop policy if exists "Owners can insert categories" on public.categories;
+create policy "Owners can insert categories"
+on public.categories for insert
+to authenticated
+with check (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = categories.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Owners can update categories" on public.categories;
+create policy "Owners can update categories"
+on public.categories for update
+to authenticated
+using (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = categories.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+)
+with check (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = categories.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Owners can delete categories" on public.categories;
+create policy "Owners can delete categories"
+on public.categories for delete
+to authenticated
+using (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = categories.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Owners can insert products" on public.products;
+create policy "Owners can insert products"
+on public.products for insert
+to authenticated
+with check (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = products.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Owners can update products" on public.products;
+create policy "Owners can update products"
+on public.products for update
+to authenticated
+using (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = products.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+)
+with check (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = products.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Owners can delete products" on public.products;
+create policy "Owners can delete products"
+on public.products for delete
+to authenticated
+using (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = products.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Owners can insert banners" on public.banners;
+create policy "Owners can insert banners"
+on public.banners for insert
+to authenticated
+with check (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = banners.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Owners can update banners" on public.banners;
+create policy "Owners can update banners"
+on public.banners for update
+to authenticated
+using (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = banners.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+)
+with check (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = banners.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Owners can delete banners" on public.banners;
+create policy "Owners can delete banners"
 on public.banners for delete
-using (true);
+to authenticated
+using (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = banners.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
 
 insert into storage.buckets (id, name, public)
 values ('menu-images', 'menu-images', true)
@@ -224,15 +307,18 @@ using (bucket_id = 'menu-images');
 drop policy if exists "MVP can upload menu images" on storage.objects;
 create policy "MVP can upload menu images"
 on storage.objects for insert
+to authenticated
 with check (bucket_id = 'menu-images');
 
 drop policy if exists "MVP can update menu images" on storage.objects;
 create policy "MVP can update menu images"
 on storage.objects for update
+to authenticated
 using (bucket_id = 'menu-images')
 with check (bucket_id = 'menu-images');
 
 drop policy if exists "MVP can delete menu images" on storage.objects;
 create policy "MVP can delete menu images"
 on storage.objects for delete
+to authenticated
 using (bucket_id = 'menu-images');

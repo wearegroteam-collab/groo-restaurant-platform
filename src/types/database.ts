@@ -38,7 +38,7 @@ export type Database = {
           address: string;
           whatsapp_url: string;
           google_maps_url: string;
-          owner_id: string | null;
+          user_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -51,7 +51,7 @@ export type Database = {
           address: string;
           whatsapp_url: string;
           google_maps_url: string;
-          owner_id?: string | null;
+          user_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -63,13 +63,13 @@ export type Database = {
           address?: string;
           whatsapp_url?: string;
           google_maps_url?: string;
-          owner_id?: string | null;
+          user_id?: string | null;
           updated_at?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "restaurants_owner_id_fkey";
-            columns: ["owner_id"];
+            foreignKeyName: "restaurants_user_id_fkey";
+            columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "users";
             referencedColumns: ["id"];

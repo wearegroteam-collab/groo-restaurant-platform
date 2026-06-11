@@ -87,6 +87,20 @@ const emptyBannerForm: BannerForm = {
   imageUrl: "",
 };
 
+const emptyRestaurant: Restaurant = {
+  id: "",
+  slug: "",
+  name: "",
+  description: "",
+  location: "",
+  address: "",
+  logoUrl: "",
+  googleMapsUrl: "",
+  whatsappUrl: "",
+  banners: [],
+  menu: [],
+};
+
 function createId(prefix: string) {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return `${prefix}-${crypto.randomUUID()}`;
@@ -142,23 +156,11 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
   } = useRestaurantsStore();
   const [selectedRestaurantId, setSelectedRestaurantId] = useState(initialRestaurants[0]?.id ?? "");
   const [isCreatingRestaurant, setIsCreatingRestaurant] = useState(false);
-  const emptyRestaurant: Restaurant = {
-    id: "",
-    slug: "",
-    name: "",
-    description: "",
-    location: "",
-    address: "",
-    logoUrl: "",
-    googleMapsUrl: "",
-    whatsappUrl: "",
-    banners: [],
-    menu: [],
-  };
-  const restaurant =
-    restaurants.find((currentRestaurant) => currentRestaurant.id === selectedRestaurantId) ??
-    restaurants[0] ??
-    emptyRestaurant;
+  const selectedRestaurant = restaurants.find(
+    (currentRestaurant) => currentRestaurant.id === selectedRestaurantId,
+  );
+  const restaurant = isCreatingRestaurant ? emptyRestaurant : (selectedRestaurant ?? emptyRestaurant);
+  const isRestaurantCreateMode = isCreatingRestaurant || !selectedRestaurant;
   const [restaurantForm, setRestaurantForm] = useStateFromRestaurant(restaurant);
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm);
   const [productForm, setProductForm] = useState<ProductForm>({
@@ -187,8 +189,12 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
       return;
     }
 
-    if (!restaurants.some((currentRestaurant) => currentRestaurant.id === selectedRestaurantId)) {
+    if (
+      !selectedRestaurantId ||
+      !restaurants.some((currentRestaurant) => currentRestaurant.id === selectedRestaurantId)
+    ) {
       setSelectedRestaurantId(restaurants[0].id);
+      setIsCreatingRestaurant(false);
     }
   }, [restaurants, selectedRestaurantId]);
 
@@ -272,7 +278,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
       restaurants.some(
         (currentRestaurant) =>
           currentRestaurant.slug === slug &&
-          (isCreatingRestaurant || currentRestaurant.id !== restaurant.id),
+          (isRestaurantCreateMode || currentRestaurant.id !== restaurant.id),
       )
     ) {
       errors.slug = "Este slug ya esta en uso.";
@@ -308,7 +314,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
     withSaving(
       "restaurant",
       async () => {
-        if (isCreatingRestaurant) {
+        if (isRestaurantCreateMode) {
           const nextRestaurant: Restaurant = {
             id: "",
             slug,
@@ -344,7 +350,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
           logoUrl: restaurantForm.logoUrl.trim(),
         }));
       },
-      isCreatingRestaurant ? "Restaurante creado." : "Informacion del restaurante guardada.",
+      isRestaurantCreateMode ? "Restaurante creado." : "Cambios guardados.",
     );
   }
 
@@ -729,14 +735,14 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
               Panel administrativo
             </p>
             <h1 className="text-2xl font-bold">
-              {isCreatingRestaurant ? "Nuevo restaurante" : restaurant.name}
+              {isRestaurantCreateMode ? "Nuevo restaurante" : restaurant.name}
             </h1>
             {session ? <p className="text-sm text-ink/55">{session.email}</p> : null}
           </div>
           <div className="grid gap-2 sm:grid-cols-[220px_auto_auto_auto] sm:items-center">
             <select
               className={inputClass}
-              disabled={isCreatingRestaurant}
+              disabled={!restaurants.length}
               value={selectedRestaurantId}
               onChange={(event) => {
                 setSelectedRestaurantId(event.target.value);
@@ -771,8 +777,8 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
               <Plus className="h-4 w-4" /> Restaurante
             </Button>
             <Button
-              onClick={() => {
-                logout();
+              onClick={async () => {
+                await logout();
               }}
               variant="outline"
             >
@@ -844,7 +850,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
           </Button>
         </section>
 
-        {!isCreatingRestaurant ? (
+        {!isRestaurantCreateMode ? (
           <section className="grid gap-3 sm:grid-cols-3">
             <Metric label="Categorias" value={restaurant.menu.length} />
             <Metric label="Productos" value={totalProducts} />
@@ -855,7 +861,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
         <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
           <div className="grid content-start gap-6">
             <Panel
-              title={isCreatingRestaurant ? "Crear restaurante" : "Informacion del restaurante"}
+              title={isRestaurantCreateMode ? "Crear restaurante" : "Editar restaurante"}
             >
               <div className="grid gap-4">
                 <Field error={restaurantErrors.slug} label="Slug" required>
@@ -927,14 +933,14 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
                   <Save className="h-4 w-4" />
                   {savingTarget === "restaurant"
                     ? "Guardando..."
-                    : isCreatingRestaurant
+                    : isRestaurantCreateMode
                       ? "Crear restaurante"
-                      : "Guardar informacion"}
+                      : "Guardar cambios"}
                 </Button>
               </div>
             </Panel>
 
-            {!isCreatingRestaurant ? (
+            {!isRestaurantCreateMode ? (
               <Panel title={categoryForm.id ? "Editar categoria" : "Crear categoria"}>
               <div className="grid gap-4">
                 <Field error={categoryErrors.name} label="Nombre" required>
@@ -975,7 +981,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
             ) : null}
           </div>
 
-          {!isCreatingRestaurant ? (
+          {!isRestaurantCreateMode ? (
             <div className="grid content-start gap-6">
             <Panel title={productForm.id ? "Editar producto" : "Crear producto"}>
               <div className="grid gap-4 md:grid-cols-2">
@@ -1201,7 +1207,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
           )}
         </section>
 
-        {!isCreatingRestaurant ? (
+        {!isRestaurantCreateMode ? (
           <Panel title="Categorias y productos">
           <div className="grid gap-4">
             <div className="grid gap-3 rounded-lg border border-ink/10 bg-brand-50/60 p-4 md:grid-cols-[1fr_240px]">
@@ -1307,7 +1313,15 @@ function useStateFromRestaurant(restaurant: Restaurant) {
       whatsappUrl: restaurant.whatsappUrl,
       logoUrl: restaurant.logoUrl,
     });
-  }, [restaurant]);
+  }, [
+    restaurant.address,
+    restaurant.googleMapsUrl,
+    restaurant.id,
+    restaurant.logoUrl,
+    restaurant.name,
+    restaurant.slug,
+    restaurant.whatsappUrl,
+  ]);
 
   return [form, setForm] as const;
 }

@@ -1,114 +1,85 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { User } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/client";
 
-const AUTH_STORAGE_KEY = "menu-hangar:auth-session";
-const AUTH_CHANGE_EVENT = "menu-hangar:auth-change";
-const MOCK_USER = {
-  email: "admin@grooteam.com",
-  password: "123456",
-};
-
-export type AuthSession = {
-  email: string;
-  loggedAt: string;
-};
-
-type LoginResult =
+type AuthResult =
   | {
       ok: true;
-      session: AuthSession;
     }
   | {
       ok: false;
       error: string;
     };
 
-function readSession() {
-  if (typeof window === "undefined") {
-    return null;
-  }
+export async function login(email: string, password: string): Promise<AuthResult> {
+  const supabase = createClient();
+  const { error } = await supabase.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password,
+  });
 
-  const storedSession = window.localStorage.getItem(AUTH_STORAGE_KEY);
-
-  if (!storedSession) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(storedSession) as AuthSession;
-  } catch {
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    return null;
-  }
-}
-
-function saveSession(session: AuthSession | null) {
-  if (session) {
-    window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
-  } else {
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
-  }
-
-  window.dispatchEvent(new CustomEvent(AUTH_CHANGE_EVENT, { detail: session }));
-}
-
-export function login(email: string, password: string): LoginResult {
-  if (email.trim().toLowerCase() !== MOCK_USER.email || password !== MOCK_USER.password) {
+  if (error) {
     return {
       ok: false,
-      error: "Credenciales incorrectas.",
+      error: error.message,
     };
   }
 
-  const session: AuthSession = {
-    email: MOCK_USER.email,
-    loggedAt: new Date().toISOString(),
-  };
-
-  saveSession(session);
-
-  return {
-    ok: true,
-    session,
-  };
+  return { ok: true };
 }
 
-export function logout() {
-  saveSession(null);
+export async function signup(email: string, password: string): Promise<AuthResult> {
+  const supabase = createClient();
+  const { error } = await supabase.auth.signUp({
+    email: email.trim().toLowerCase(),
+    password,
+  });
+
+  if (error) {
+    return {
+      ok: false,
+      error: error.message,
+    };
+  }
+
+  return { ok: true };
+}
+
+export async function logout() {
+  const supabase = createClient();
+  await supabase.auth.signOut();
 }
 
 export function useAuth() {
-  const [session, setSession] = useState<AuthSession | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setSession(readSession());
-    setIsLoading(false);
+    const supabase = createClient();
 
-    function handleStorage(event: StorageEvent) {
-      if (event.key === AUTH_STORAGE_KEY) {
-        setSession(readSession());
-      }
-    }
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+      setIsLoading(false);
+    });
 
-    function handleAuthChange(event: Event) {
-      const customEvent = event as CustomEvent<AuthSession | null>;
-      setSession(customEvent.detail);
-    }
-
-    window.addEventListener("storage", handleStorage);
-    window.addEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+    });
 
     return () => {
-      window.removeEventListener("storage", handleStorage);
-      window.removeEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
+      subscription.unsubscribe();
     };
   }, []);
 
   return {
-    isAuthenticated: Boolean(session),
+    isAuthenticated: Boolean(user),
     isLoading,
-    session,
+    session: user,
+    user,
   };
 }

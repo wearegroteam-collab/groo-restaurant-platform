@@ -17,6 +17,7 @@ type RestaurantRow = {
   address: string;
   whatsapp_url: string;
   google_maps_url: string;
+  user_id: string | null;
 };
 
 type CategoryRow = {
@@ -133,11 +134,17 @@ function normalizeSupabaseError(error: PostgrestError | null) {
   }
 }
 
-async function fetchRestaurantsFromSupabase() {
+async function fetchRestaurantsFromSupabase(userId?: string) {
   const supabase = createClient() as unknown as SupabaseClient;
 
+  let restaurantsQuery = supabase.from("restaurants").select("*").order("name", { ascending: true });
+
+  if (userId) {
+    restaurantsQuery = restaurantsQuery.eq("user_id", userId);
+  }
+
   const [restaurantsResult, categoriesResult, productsResult, bannersResult] = await Promise.all([
-    supabase.from("restaurants").select("*").order("name", { ascending: true }),
+    restaurantsQuery,
     supabase
       .from("categories")
       .select("*")
@@ -164,7 +171,7 @@ async function fetchRestaurantsFromSupabase() {
   return restaurants.map((restaurant) => toRestaurant(restaurant, categories, products, banners));
 }
 
-async function replaceRestaurantGraph(restaurant: Restaurant) {
+async function replaceRestaurantGraph(restaurant: Restaurant, userId?: string) {
   const supabase = createClient() as unknown as SupabaseClient;
   const isExistingRestaurant = Boolean(restaurant.id);
 
@@ -177,7 +184,7 @@ async function replaceRestaurantGraph(restaurant: Restaurant) {
         .single()
     : await supabase
         .from("restaurants")
-        .insert(toRestaurantInsert(restaurant))
+        .insert({ ...toRestaurantInsert(restaurant), user_id: userId })
         .select("id")
         .single();
 
@@ -258,7 +265,11 @@ export function useRestaurantsStore() {
     setError(null);
 
     try {
-      const nextRestaurants = await fetchRestaurantsFromSupabase();
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const nextRestaurants = user ? await fetchRestaurantsFromSupabase(user.id) : [];
       setRestaurantsState(nextRestaurants);
       return nextRestaurants;
     } catch (currentError) {
@@ -277,24 +288,42 @@ export function useRestaurantsStore() {
 
   async function setRestaurants(nextRestaurants: Restaurant[]) {
     const supabase = createClient() as unknown as SupabaseClient;
+    const authClient = createClient();
+    const {
+      data: { user },
+    } = await authClient.auth.getUser();
+
+    if (!user) {
+      throw new Error("Debes iniciar sesion.");
+    }
+
     const restaurantsResult = await supabase.from("restaurants").select("id");
     normalizeSupabaseError(restaurantsResult.error);
 
     await Promise.all(
       ((restaurantsResult.data ?? []) as Array<{ id: string }>).map((restaurant) =>
-        supabase.from("restaurants").delete().eq("id", restaurant.id),
+        supabase.from("restaurants").delete().eq("id", restaurant.id).eq("user_id", user.id),
       ),
     );
 
     for (const restaurant of nextRestaurants) {
-      await replaceRestaurantGraph({ ...restaurant, id: "" });
+      await replaceRestaurantGraph({ ...restaurant, id: "" }, user.id);
     }
 
     return refreshRestaurants();
   }
 
   async function upsertRestaurant(nextRestaurant: Restaurant) {
-    await replaceRestaurantGraph(nextRestaurant);
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      throw new Error("Debes iniciar sesion.");
+    }
+
+    await replaceRestaurantGraph(nextRestaurant, user.id);
     return refreshRestaurants();
   }
 
@@ -333,7 +362,28 @@ export function useRestaurantsStore() {
 
 export function useRestaurantBySlug(_initialRestaurants: Restaurant[], slug: string) {
   void _initialRestaurants;
-  const { error, isLoading, restaurants } = useRestaurantsStore();
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadRestaurants() {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        setRestaurants(await fetchRestaurantsFromSupabase());
+      } catch (currentError) {
+        setError(
+          currentError instanceof Error ? currentError.message : "No se pudo cargar el restaurante.",
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadRestaurants();
+  }, []);
 
   return {
     error,
