@@ -2,14 +2,16 @@ import type { MenuItem, MenuTheme } from "@/types/menu";
 import { formatMoney } from "@/features/menus/format-money";
 import { cn } from "@/lib/utils/cn";
 import { ProductImage } from "@/components/menu/product-image";
+import { Plus } from "lucide-react";
 
 type MenuItemCardProps = {
   item: MenuItem;
   index?: number;
+  onAdd?: (item: MenuItem) => void;
   theme?: MenuTheme;
 };
 
-export function MenuItemCard({ item, index = 0, theme = "light" }: MenuItemCardProps) {
+export function MenuItemCard({ item, index = 0, onAdd, theme = "light" }: MenuItemCardProps) {
   const isDark = theme === "dark";
 
   return (
@@ -64,9 +66,26 @@ export function MenuItemCard({ item, index = 0, theme = "light" }: MenuItemCardP
             {item.description}
           </p>
         </div>
-        <p className={cn("text-lg font-bold", isDark ? "text-brand-100" : "text-ink")}>
-          {formatMoney(item.price)}
-        </p>
+        <div className="flex items-center justify-between gap-3">
+          <p className={cn("text-lg font-bold", isDark ? "text-brand-100" : "text-ink")}>
+            {formatMoney(item.price)}
+          </p>
+          {item.isAvailable ? (
+            <button
+              className={cn(
+                "inline-flex min-h-9 items-center gap-1 rounded-full px-3 py-2 text-xs font-bold transition",
+                isDark
+                  ? "bg-brand-500 text-ink hover:bg-brand-100"
+                  : "bg-ink/5 text-ink hover:bg-brand-100",
+              )}
+              onClick={() => onAdd?.(item)}
+              type="button"
+            >
+              <Plus className="h-4 w-4" />
+              Agregar
+            </button>
+          ) : null}
+        </div>
       </div>
     </article>
   );

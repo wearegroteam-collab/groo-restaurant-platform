@@ -83,6 +83,38 @@ create table if not exists public.banners (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.addon_groups (
+  id uuid primary key default gen_random_uuid(),
+  restaurant_id uuid not null references public.restaurants(id) on delete cascade,
+  name text not null,
+  required boolean not null default false,
+  multiple boolean not null default true,
+  min_select integer not null default 0 check (min_select >= 0),
+  max_select integer check (max_select is null or max_select >= min_select),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.addon_options (
+  id uuid primary key default gen_random_uuid(),
+  restaurant_id uuid not null references public.restaurants(id) on delete cascade,
+  group_id uuid not null references public.addon_groups(id) on delete cascade,
+  name text not null,
+  price integer not null default 0 check (price >= 0),
+  available boolean not null default true,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.product_addon_groups (
+  restaurant_id uuid not null references public.restaurants(id) on delete cascade,
+  product_id uuid not null references public.products(id) on delete cascade,
+  addon_group_id uuid not null references public.addon_groups(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (product_id, addon_group_id)
+);
+
 create index if not exists restaurants_slug_idx on public.restaurants(slug);
 create index if not exists categories_restaurant_id_sort_order_idx
   on public.categories(restaurant_id, sort_order);
@@ -90,6 +122,11 @@ create index if not exists products_restaurant_id_category_id_sort_order_idx
   on public.products(restaurant_id, category_id, sort_order);
 create index if not exists banners_restaurant_id_sort_order_idx
   on public.banners(restaurant_id, sort_order);
+create index if not exists addon_groups_restaurant_id_idx on public.addon_groups(restaurant_id);
+create index if not exists addon_options_group_id_sort_order_idx
+  on public.addon_options(group_id, sort_order);
+create index if not exists product_addon_groups_restaurant_id_idx
+  on public.product_addon_groups(restaurant_id);
 
 create or replace function public.set_updated_at()
 returns trigger as $$
@@ -124,11 +161,24 @@ create trigger set_banners_updated_at
 before update on public.banners
 for each row execute function public.set_updated_at();
 
+drop trigger if exists set_addon_groups_updated_at on public.addon_groups;
+create trigger set_addon_groups_updated_at
+before update on public.addon_groups
+for each row execute function public.set_updated_at();
+
+drop trigger if exists set_addon_options_updated_at on public.addon_options;
+create trigger set_addon_options_updated_at
+before update on public.addon_options
+for each row execute function public.set_updated_at();
+
 alter table public.users enable row level security;
 alter table public.restaurants enable row level security;
 alter table public.categories enable row level security;
 alter table public.products enable row level security;
 alter table public.banners enable row level security;
+alter table public.addon_groups enable row level security;
+alter table public.addon_options enable row level security;
+alter table public.product_addon_groups enable row level security;
 
 drop policy if exists "Public can read restaurants" on public.restaurants;
 create policy "Public can read restaurants"
@@ -150,6 +200,21 @@ create policy "Public can read active banners"
 on public.banners for select
 using (is_active = true);
 
+drop policy if exists "Public can read addon groups" on public.addon_groups;
+create policy "Public can read addon groups"
+on public.addon_groups for select
+using (true);
+
+drop policy if exists "Public can read available addon options" on public.addon_options;
+create policy "Public can read available addon options"
+on public.addon_options for select
+using (available = true);
+
+drop policy if exists "Public can read product addon groups" on public.product_addon_groups;
+create policy "Public can read product addon groups"
+on public.product_addon_groups for select
+using (true);
+
 drop policy if exists "MVP can insert restaurants" on public.restaurants;
 drop policy if exists "MVP can update restaurants" on public.restaurants;
 drop policy if exists "MVP can delete restaurants" on public.restaurants;
@@ -162,6 +227,15 @@ drop policy if exists "MVP can delete products" on public.products;
 drop policy if exists "MVP can insert banners" on public.banners;
 drop policy if exists "MVP can update banners" on public.banners;
 drop policy if exists "MVP can delete banners" on public.banners;
+drop policy if exists "MVP can insert addon groups" on public.addon_groups;
+drop policy if exists "MVP can update addon groups" on public.addon_groups;
+drop policy if exists "MVP can delete addon groups" on public.addon_groups;
+drop policy if exists "MVP can insert addon options" on public.addon_options;
+drop policy if exists "MVP can update addon options" on public.addon_options;
+drop policy if exists "MVP can delete addon options" on public.addon_options;
+drop policy if exists "MVP can insert product addon groups" on public.product_addon_groups;
+drop policy if exists "MVP can update product addon groups" on public.product_addon_groups;
+drop policy if exists "MVP can delete product addon groups" on public.product_addon_groups;
 
 drop policy if exists "Owners can insert restaurants" on public.restaurants;
 create policy "Owners can insert restaurants"
@@ -307,6 +381,116 @@ using (
   exists (
     select 1 from public.restaurants
     where restaurants.id = banners.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Owners can insert addon groups" on public.addon_groups;
+create policy "Owners can insert addon groups"
+on public.addon_groups for insert
+to authenticated
+with check (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = addon_groups.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Owners can update addon groups" on public.addon_groups;
+create policy "Owners can update addon groups"
+on public.addon_groups for update
+to authenticated
+using (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = addon_groups.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+)
+with check (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = addon_groups.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Owners can delete addon groups" on public.addon_groups;
+create policy "Owners can delete addon groups"
+on public.addon_groups for delete
+to authenticated
+using (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = addon_groups.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Owners can insert addon options" on public.addon_options;
+create policy "Owners can insert addon options"
+on public.addon_options for insert
+to authenticated
+with check (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = addon_options.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Owners can update addon options" on public.addon_options;
+create policy "Owners can update addon options"
+on public.addon_options for update
+to authenticated
+using (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = addon_options.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+)
+with check (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = addon_options.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Owners can delete addon options" on public.addon_options;
+create policy "Owners can delete addon options"
+on public.addon_options for delete
+to authenticated
+using (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = addon_options.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Owners can insert product addon groups" on public.product_addon_groups;
+create policy "Owners can insert product addon groups"
+on public.product_addon_groups for insert
+to authenticated
+with check (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = product_addon_groups.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Owners can delete product addon groups" on public.product_addon_groups;
+create policy "Owners can delete product addon groups"
+on public.product_addon_groups for delete
+to authenticated
+using (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = product_addon_groups.restaurant_id
       and restaurants.user_id = auth.uid()
   )
 );

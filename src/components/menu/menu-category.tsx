@@ -4,10 +4,11 @@ import { cn } from "@/lib/utils/cn";
 
 type MenuCategoryProps = {
   category: MenuCategoryType;
+  onAddItem?: (item: MenuCategoryType["items"][number]) => void;
   theme?: MenuTheme;
 };
 
-export function MenuCategory({ category, theme = "light" }: MenuCategoryProps) {
+export function MenuCategory({ category, onAddItem, theme = "light" }: MenuCategoryProps) {
   const isDark = theme === "dark";
 
   return (
@@ -28,7 +29,7 @@ export function MenuCategory({ category, theme = "light" }: MenuCategoryProps) {
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
         {category.items.map((item, index) => (
-          <MenuItemCard index={index} item={item} key={item.id} theme={theme} />
+          <MenuItemCard index={index} item={item} key={item.id} onAdd={onAddItem} theme={theme} />
         ))}
       </div>
     </section>

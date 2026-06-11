@@ -16,7 +16,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import type { MenuBanner, MenuCategory, MenuItem, Restaurant } from "@/types/menu";
+import type { AddonGroup, AddonOption, MenuBanner, MenuCategory, MenuItem, Restaurant } from "@/types/menu";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/layout/container";
 import { formatMoney } from "@/features/menus/format-money";
@@ -48,6 +48,24 @@ type ProductForm = {
   imageUrl: string;
   tags: string;
   isAvailable: boolean;
+  addonGroupIds: string[];
+};
+
+type AddonGroupForm = {
+  id?: string;
+  name: string;
+  required: boolean;
+  multiple: boolean;
+  minSelect: string;
+  maxSelect: string;
+};
+
+type AddonOptionForm = {
+  groupId: string;
+  id?: string;
+  name: string;
+  price: string;
+  available: boolean;
 };
 
 type BannerForm = {
@@ -78,6 +96,22 @@ const emptyProductForm: ProductForm = {
   imageUrl: "",
   tags: "",
   isAvailable: true,
+  addonGroupIds: [],
+};
+
+const emptyAddonGroupForm: AddonGroupForm = {
+  name: "",
+  required: false,
+  multiple: true,
+  minSelect: "0",
+  maxSelect: "",
+};
+
+const emptyAddonOptionForm: AddonOptionForm = {
+  groupId: "",
+  name: "",
+  price: "",
+  available: true,
 };
 
 const emptyBannerForm: BannerForm = {
@@ -98,6 +132,7 @@ const emptyRestaurant: Restaurant = {
   whatsappUrl: "",
   theme: "light",
   banners: [],
+  addonGroups: [],
   menu: [],
 };
 
@@ -166,6 +201,8 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
     ...emptyProductForm,
     categoryId: restaurant.menu[0]?.id ?? "",
   });
+  const [addonGroupForm, setAddonGroupForm] = useState(emptyAddonGroupForm);
+  const [addonOptionForm, setAddonOptionForm] = useState(emptyAddonOptionForm);
   const [bannerForm, setBannerForm] = useState(emptyBannerForm);
   const [restaurantErrors, setRestaurantErrors] = useState<FormErrors<keyof RestaurantForm>>({});
   const [categoryErrors, setCategoryErrors] = useState<FormErrors<"name">>({});
@@ -173,6 +210,10 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
     {},
   );
   const [bannerErrors, setBannerErrors] = useState<FormErrors<"title" | "imageUrl">>({});
+  const [addonGroupErrors, setAddonGroupErrors] =
+    useState<FormErrors<"name" | "minSelect" | "maxSelect">>({});
+  const [addonOptionErrors, setAddonOptionErrors] =
+    useState<FormErrors<"groupId" | "name" | "price">>({});
   const [savingTarget, setSavingTarget] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [productSearch, setProductSearch] = useState("");
@@ -329,6 +370,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
             whatsappUrl: restaurantForm.whatsappUrl.trim(),
             theme: restaurantForm.theme,
             banners: [],
+            addonGroups: [],
             menu: [],
           };
 
@@ -507,6 +549,8 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
       },
       imageUrl: productForm.imageUrl.trim(),
       isAvailable: productForm.isAvailable,
+      addonGroupIds: productForm.addonGroupIds,
+      addonGroups: restaurant.addonGroups.filter((group) => productForm.addonGroupIds.includes(group.id)),
       tags: productForm.tags
         .split(",")
         .map((tag) => tag.trim())
@@ -557,6 +601,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
       price: String(item.price.amount),
       imageUrl: item.imageUrl,
       isAvailable: item.isAvailable,
+      addonGroupIds: item.addonGroupIds ?? [],
       tags: item.tags?.join(", ") ?? "",
     });
   }
@@ -665,6 +710,205 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
     } catch (error) {
       showToast(error instanceof Error ? error.message : "No se pudo actualizar el producto.", "error");
     }
+  }
+
+  function saveAddonGroup() {
+    const errors: FormErrors<"name" | "minSelect" | "maxSelect"> = {};
+    const name = addonGroupForm.name.trim();
+    const minSelect = Number(addonGroupForm.minSelect || 0);
+    const maxSelect = addonGroupForm.maxSelect ? Number(addonGroupForm.maxSelect) : null;
+
+    if (!name) {
+      errors.name = "El nombre del grupo es obligatorio.";
+    }
+
+    if (Number.isNaN(minSelect) || minSelect < 0) {
+      errors.minSelect = "Minimo debe ser cero o mayor.";
+    }
+
+    if (maxSelect !== null && (Number.isNaN(maxSelect) || maxSelect < minSelect)) {
+      errors.maxSelect = "Maximo debe ser mayor o igual al minimo.";
+    }
+
+    setAddonGroupErrors(errors);
+
+    if (Object.keys(errors).length) {
+      showToast("Revisa los campos del grupo de adiciones.", "error");
+      return;
+    }
+
+    const nextGroup: AddonGroup = {
+      id: addonGroupForm.id ?? createId("addon-group"),
+      name,
+      required: addonGroupForm.required,
+      multiple: addonGroupForm.multiple,
+      minSelect,
+      maxSelect,
+      options: addonGroupForm.id
+        ? restaurant.addonGroups.find((group) => group.id === addonGroupForm.id)?.options ?? []
+        : [],
+    };
+
+    withSaving(
+      "addon-group",
+      () => {
+        const promise = updateRestaurant((currentRestaurant) => ({
+          ...currentRestaurant,
+          addonGroups: addonGroupForm.id
+            ? currentRestaurant.addonGroups.map((group) =>
+                group.id === addonGroupForm.id ? nextGroup : group,
+              )
+            : [...currentRestaurant.addonGroups, nextGroup],
+        }));
+
+        setAddonGroupForm(emptyAddonGroupForm);
+        return promise;
+      },
+      addonGroupForm.id ? "Grupo actualizado." : "Grupo creado.",
+    );
+  }
+
+  function editAddonGroup(group: AddonGroup) {
+    setAddonGroupErrors({});
+    setAddonGroupForm({
+      id: group.id,
+      name: group.name,
+      required: group.required,
+      multiple: group.multiple,
+      minSelect: String(group.minSelect),
+      maxSelect: group.maxSelect === null ? "" : String(group.maxSelect),
+    });
+  }
+
+  async function deleteAddonGroup(groupId: string) {
+    const group = restaurant.addonGroups.find((currentGroup) => currentGroup.id === groupId);
+
+    if (!window.confirm(`Eliminar el grupo "${group?.name ?? "seleccionado"}"?`)) {
+      return;
+    }
+
+    try {
+      await updateRestaurant((currentRestaurant) => ({
+        ...currentRestaurant,
+        addonGroups: currentRestaurant.addonGroups.filter((currentGroup) => currentGroup.id !== groupId),
+        menu: currentRestaurant.menu.map((category) => ({
+          ...category,
+          items: category.items.map((item) => ({
+            ...item,
+            addonGroupIds: (item.addonGroupIds ?? []).filter((currentGroupId) => currentGroupId !== groupId),
+          })),
+        })),
+      }));
+      setProductForm((currentForm) => ({
+        ...currentForm,
+        addonGroupIds: currentForm.addonGroupIds.filter((currentGroupId) => currentGroupId !== groupId),
+      }));
+      showToast("Grupo eliminado.", "success");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "No se pudo eliminar el grupo.", "error");
+    }
+  }
+
+  function saveAddonOption() {
+    const errors: FormErrors<"groupId" | "name" | "price"> = {};
+    const name = addonOptionForm.name.trim();
+    const price = Number(addonOptionForm.price || 0);
+
+    if (!addonOptionForm.groupId) {
+      errors.groupId = "Selecciona un grupo.";
+    }
+
+    if (!name) {
+      errors.name = "El nombre de la opcion es obligatorio.";
+    }
+
+    if (Number.isNaN(price) || price < 0) {
+      errors.price = "El precio debe ser cero o mayor.";
+    }
+
+    setAddonOptionErrors(errors);
+
+    if (Object.keys(errors).length) {
+      showToast("Revisa los campos de la opcion.", "error");
+      return;
+    }
+
+    const nextOption: AddonOption = {
+      id: addonOptionForm.id ?? createId("addon-option"),
+      name,
+      price: {
+        amount: price,
+        currency: "COP",
+      },
+      available: addonOptionForm.available,
+    };
+
+    withSaving(
+      "addon-option",
+      () => {
+        const promise = updateRestaurant((currentRestaurant) => ({
+          ...currentRestaurant,
+          addonGroups: currentRestaurant.addonGroups.map((group) => {
+            if (group.id !== addonOptionForm.groupId) {
+              return group;
+            }
+
+            return {
+              ...group,
+              options: addonOptionForm.id
+                ? group.options.map((option) =>
+                    option.id === addonOptionForm.id ? nextOption : option,
+                  )
+                : [...group.options, nextOption],
+            };
+          }),
+        }));
+
+        setAddonOptionForm({ ...emptyAddonOptionForm, groupId: addonOptionForm.groupId });
+        return promise;
+      },
+      addonOptionForm.id ? "Opcion actualizada." : "Opcion creada.",
+    );
+  }
+
+  function editAddonOption(groupId: string, option: AddonOption) {
+    setAddonOptionErrors({});
+    setAddonOptionForm({
+      groupId,
+      id: option.id,
+      name: option.name,
+      price: String(option.price.amount),
+      available: option.available,
+    });
+  }
+
+  async function deleteAddonOption(groupId: string, optionId: string) {
+    if (!window.confirm("Eliminar esta opcion de adicion?")) {
+      return;
+    }
+
+    try {
+      await updateRestaurant((currentRestaurant) => ({
+        ...currentRestaurant,
+        addonGroups: currentRestaurant.addonGroups.map((group) =>
+          group.id === groupId
+            ? { ...group, options: group.options.filter((option) => option.id !== optionId) }
+            : group,
+        ),
+      }));
+      showToast("Opcion eliminada.", "success");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "No se pudo eliminar la opcion.", "error");
+    }
+  }
+
+  function toggleProductAddonGroup(groupId: string) {
+    setProductForm((currentForm) => ({
+      ...currentForm,
+      addonGroupIds: currentForm.addonGroupIds.includes(groupId)
+        ? currentForm.addonGroupIds.filter((currentGroupId) => currentGroupId !== groupId)
+        : [...currentForm.addonGroupIds, groupId],
+    }));
   }
 
   function saveBanner() {
@@ -1093,6 +1337,27 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
                     }
                   />
                 </Field>
+                <div className="grid gap-2 text-sm font-semibold text-ink md:col-span-2">
+                  <span>Grupos de adiciones</span>
+                  {restaurant.addonGroups.length ? (
+                    <div className="grid gap-2 rounded-md border border-ink/10 bg-white p-3 sm:grid-cols-2">
+                      {restaurant.addonGroups.map((group) => (
+                        <label className="flex items-center gap-2 text-sm font-semibold" key={group.id}>
+                          <input
+                            checked={productForm.addonGroupIds.includes(group.id)}
+                            onChange={() => toggleProductAddonGroup(group.id)}
+                            type="checkbox"
+                          />
+                          {group.name}
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="rounded-md border border-dashed border-ink/15 p-3 text-xs font-normal leading-5 text-ink/55">
+                      Crea grupos en la seccion Adiciones para asignarlos a productos.
+                    </p>
+                  )}
+                </div>
                 <div className="flex items-end gap-2">
                   <Button disabled={savingTarget === "product"} onClick={saveProduct}>
                     <Plus className="h-4 w-4" />
@@ -1115,6 +1380,202 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
                       Cancelar
                     </Button>
                   ) : null}
+                </div>
+              </div>
+            </Panel>
+
+            <Panel title="Adiciones">
+              <div className="grid gap-5">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field error={addonGroupErrors.name} label="Nombre del grupo" required>
+                    <input
+                      className={inputClass}
+                      placeholder="Salsas, extras, terminos"
+                      value={addonGroupForm.name}
+                      onChange={(event) =>
+                        setAddonGroupForm({ ...addonGroupForm, name: event.target.value })
+                      }
+                    />
+                  </Field>
+                  <Field error={addonGroupErrors.minSelect} label="Minimo">
+                    <input
+                      className={inputClass}
+                      min="0"
+                      type="number"
+                      value={addonGroupForm.minSelect}
+                      onChange={(event) =>
+                        setAddonGroupForm({ ...addonGroupForm, minSelect: event.target.value })
+                      }
+                    />
+                  </Field>
+                  <Field error={addonGroupErrors.maxSelect} label="Maximo">
+                    <input
+                      className={inputClass}
+                      min="0"
+                      placeholder="Sin limite"
+                      type="number"
+                      value={addonGroupForm.maxSelect}
+                      onChange={(event) =>
+                        setAddonGroupForm({ ...addonGroupForm, maxSelect: event.target.value })
+                      }
+                    />
+                  </Field>
+                  <div className="grid gap-2 text-sm font-semibold">
+                    <label className="flex items-center gap-2 rounded-md border border-ink/10 bg-white px-3 py-3">
+                      <input
+                        checked={addonGroupForm.multiple}
+                        onChange={(event) =>
+                          setAddonGroupForm({ ...addonGroupForm, multiple: event.target.checked })
+                        }
+                        type="checkbox"
+                      />
+                      Permite seleccion multiple
+                    </label>
+                    <label className="flex items-center gap-2 rounded-md border border-ink/10 bg-white px-3 py-3">
+                      <input
+                        checked={addonGroupForm.required}
+                        onChange={(event) =>
+                          setAddonGroupForm({ ...addonGroupForm, required: event.target.checked })
+                        }
+                        type="checkbox"
+                      />
+                      Obligatorio
+                    </label>
+                  </div>
+                  <div className="flex gap-2 md:col-span-2">
+                    <Button disabled={savingTarget === "addon-group"} onClick={saveAddonGroup}>
+                      <Plus className="h-4 w-4" />
+                      {savingTarget === "addon-group"
+                        ? "Guardando..."
+                        : addonGroupForm.id
+                          ? "Guardar grupo"
+                          : "Crear grupo"}
+                    </Button>
+                    {addonGroupForm.id ? (
+                      <Button onClick={() => setAddonGroupForm(emptyAddonGroupForm)} variant="outline">
+                        Cancelar
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 rounded-lg border border-ink/10 bg-brand-50/60 p-4">
+                  <h3 className="font-bold">Opciones del grupo</h3>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field error={addonOptionErrors.groupId} label="Grupo" required>
+                      <select
+                        className={inputClass}
+                        value={addonOptionForm.groupId}
+                        onChange={(event) =>
+                          setAddonOptionForm({ ...emptyAddonOptionForm, groupId: event.target.value })
+                        }
+                      >
+                        <option value="">Selecciona un grupo</option>
+                        {restaurant.addonGroups.map((group) => (
+                          <option key={group.id} value={group.id}>
+                            {group.name}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field error={addonOptionErrors.name} label="Nombre opcion" required>
+                      <input
+                        className={inputClass}
+                        value={addonOptionForm.name}
+                        onChange={(event) =>
+                          setAddonOptionForm({ ...addonOptionForm, name: event.target.value })
+                        }
+                      />
+                    </Field>
+                    <Field error={addonOptionErrors.price} label="Precio COP">
+                      <input
+                        className={inputClass}
+                        min="0"
+                        type="number"
+                        value={addonOptionForm.price}
+                        onChange={(event) =>
+                          setAddonOptionForm({ ...addonOptionForm, price: event.target.value })
+                        }
+                      />
+                    </Field>
+                    <label className="flex items-center gap-2 self-end rounded-md border border-ink/10 bg-white px-3 py-3 text-sm font-semibold">
+                      <input
+                        checked={addonOptionForm.available}
+                        onChange={(event) =>
+                          setAddonOptionForm({ ...addonOptionForm, available: event.target.checked })
+                        }
+                        type="checkbox"
+                      />
+                      Disponible
+                    </label>
+                    <div className="flex gap-2 md:col-span-2">
+                      <Button disabled={savingTarget === "addon-option"} onClick={saveAddonOption}>
+                        <Plus className="h-4 w-4" />
+                        {savingTarget === "addon-option"
+                          ? "Guardando..."
+                          : addonOptionForm.id
+                            ? "Guardar opcion"
+                            : "Crear opcion"}
+                      </Button>
+                      {addonOptionForm.id ? (
+                        <Button
+                          onClick={() =>
+                            setAddonOptionForm({
+                              ...emptyAddonOptionForm,
+                              groupId: addonOptionForm.groupId,
+                            })
+                          }
+                          variant="outline"
+                        >
+                          Cancelar
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-3">
+                  {restaurant.addonGroups.map((group) => (
+                    <div className="rounded-md border border-ink/10 bg-white p-4" key={group.id}>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="font-bold">{group.name}</p>
+                          <p className="text-sm text-ink/60">
+                            {group.required ? "Obligatorio" : "Opcional"} ·{" "}
+                            {group.multiple ? "Multiple" : "Unica seleccion"}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button onClick={() => editAddonGroup(group)} variant="outline">
+                            <Pencil className="h-4 w-4" /> Editar
+                          </Button>
+                          <Button onClick={() => deleteAddonGroup(group.id)} variant="outline">
+                            <Trash2 className="h-4 w-4" /> Eliminar
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="mt-3 grid gap-2">
+                        {group.options.map((option) => (
+                          <Row key={option.id}>
+                            <div>
+                              <p className="font-semibold">{option.name}</p>
+                              <p className="text-sm text-ink/60">
+                                {formatMoney(option.price)} · {option.available ? "Disponible" : "No disponible"}
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button onClick={() => editAddonOption(group.id, option)} variant="outline">
+                                <Pencil className="h-4 w-4" /> Editar
+                              </Button>
+                              <Button onClick={() => deleteAddonOption(group.id, option.id)} variant="outline">
+                                <Trash2 className="h-4 w-4" /> Eliminar
+                              </Button>
+                            </div>
+                          </Row>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </Panel>

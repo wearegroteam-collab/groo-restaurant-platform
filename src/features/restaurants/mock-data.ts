@@ -13,6 +13,7 @@ export const restaurants: Restaurant[] = [
     googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Hangar+Gastrobar+San+Andres",
     whatsappUrl: "https://wa.me/573001112233",
     theme: "light",
+    addonGroups: [],
     banners: [
       {
         id: "banner_burger",
@@ -119,6 +120,7 @@ export const restaurants: Restaurant[] = [
     googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Origen+Cocina+Local+San+Andres",
     whatsappUrl: "https://wa.me/573009998877",
     theme: "light",
+    addonGroups: [],
     banners: [
       {
         id: "banner_origen_1",
@@ -192,6 +194,7 @@ export const restaurants: Restaurant[] = [
     googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Cocobar+San+Andres",
     whatsappUrl: "https://wa.me/573005554433",
     theme: "light",
+    addonGroups: [],
     banners: [
       {
         id: "banner_cocobar_1",

@@ -1,15 +1,21 @@
 "use client";
 
-import type { Restaurant } from "@/types/menu";
+import type { MenuItem, Restaurant } from "@/types/menu";
+import type { CartAddon } from "@/features/cart/use-cart";
+import { AddonSelectorModal } from "@/components/menu/addon-selector-modal";
 import { Container } from "@/components/layout/container";
 import { BannerSlider } from "@/components/menu/banner-slider";
+import { CartButton } from "@/components/menu/cart-button";
+import { CartPanel } from "@/components/menu/cart-panel";
 import { CategoryNav } from "@/components/menu/category-nav";
 import { FeaturedPromotions } from "@/components/menu/featured-promotions";
 import { MenuCategory } from "@/components/menu/menu-category";
 import { RestaurantHeader } from "@/components/menu/restaurant-header";
 import { WhatsAppFab } from "@/components/menu/whatsapp-fab";
+import { useCart } from "@/features/cart/use-cart";
 import { useRestaurantBySlug } from "@/features/restaurants/use-restaurant-store";
 import { cn } from "@/lib/utils/cn";
+import { useState } from "react";
 
 type PublicMenuExperienceProps = {
   initialRestaurants: Restaurant[];
@@ -20,6 +26,9 @@ export function PublicMenuExperience({
   initialRestaurants,
   restaurantSlug,
 }: PublicMenuExperienceProps) {
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [itemToCustomize, setItemToCustomize] = useState<MenuItem | null>(null);
+  const cart = useCart();
   const {
     error,
     isLoading,
@@ -70,6 +79,22 @@ export function PublicMenuExperience({
   }
 
   const isDark = currentRestaurant.theme === "dark";
+  const currency =
+    cart.lines[0]?.item.price.currency ??
+    currentRestaurant.menu.flatMap((category) => category.items)[0]?.price.currency ??
+    "COP";
+  function addMenuItem(item: MenuItem) {
+    if (item.addonGroups?.length) {
+      setItemToCustomize(item);
+      return;
+    }
+
+    cart.addItem(item);
+  }
+
+  function addCustomizedItem(item: MenuItem, addons: CartAddon[]) {
+    cart.addItem(item, addons);
+  }
 
   return (
     <main
@@ -85,11 +110,45 @@ export function PublicMenuExperience({
 
       <Container className="grid gap-9 py-6">
         {currentRestaurant.menu.map((category) => (
-          <MenuCategory category={category} key={category.id} theme={currentRestaurant.theme} />
+          <MenuCategory
+            category={category}
+            key={category.id}
+            onAddItem={addMenuItem}
+            theme={currentRestaurant.theme}
+          />
         ))}
       </Container>
 
-      <WhatsAppFab href={currentRestaurant.whatsappUrl} />
+      {cart.totalQuantity ? (
+        <>
+          <CartButton
+            currency={currency}
+            onClick={() => setIsCartOpen(true)}
+            theme={currentRestaurant.theme}
+            totalAmount={cart.totalAmount}
+            totalQuantity={cart.totalQuantity}
+          />
+          <CartPanel
+            isOpen={isCartOpen}
+            lines={cart.lines}
+            onAdd={(line) => cart.addItem(line.item, line.selectedAddons)}
+            onClose={() => setIsCartOpen(false)}
+            onDecrease={cart.decreaseLine}
+            onRemove={cart.removeLine}
+            restaurant={currentRestaurant}
+            theme={currentRestaurant.theme}
+            totalAmount={cart.totalAmount}
+          />
+        </>
+      ) : (
+        <WhatsAppFab href={currentRestaurant.whatsappUrl} />
+      )}
+      <AddonSelectorModal
+        item={itemToCustomize}
+        onAdd={addCustomizedItem}
+        onClose={() => setItemToCustomize(null)}
+        theme={currentRestaurant.theme}
+      />
     </main>
   );
 }

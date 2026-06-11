@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
-import type { MenuBanner, MenuCategory, MenuItem, Restaurant } from "@/types/menu";
+import type { AddonGroup, MenuBanner, MenuCategory, MenuItem, Restaurant } from "@/types/menu";
 import { createClient } from "@/lib/supabase/client";
 
 const DEFAULT_IMAGE_URL =
@@ -52,12 +52,62 @@ type BannerRow = {
   sort_order: number;
 };
 
+type AddonGroupRow = {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  required: boolean;
+  multiple: boolean;
+  min_select: number;
+  max_select: number | null;
+};
+
+type AddonOptionRow = {
+  id: string;
+  group_id: string;
+  name: string;
+  price: number;
+  available: boolean;
+  sort_order: number;
+};
+
+type ProductAddonGroupRow = {
+  product_id: string;
+  addon_group_id: string;
+};
+
 function toRestaurant(
   restaurant: RestaurantRow,
   categories: CategoryRow[],
   products: ProductRow[],
   banners: BannerRow[],
+  addonGroups: AddonGroupRow[],
+  addonOptions: AddonOptionRow[],
+  productAddonGroups: ProductAddonGroupRow[],
 ): Restaurant {
+  const restaurantAddonGroups: AddonGroup[] = addonGroups
+    .filter((group) => group.restaurant_id === restaurant.id)
+    .map((group) => ({
+      id: group.id,
+      name: group.name,
+      required: group.required,
+      multiple: group.multiple,
+      minSelect: group.min_select,
+      maxSelect: group.max_select,
+      options: addonOptions
+        .filter((option) => option.group_id === group.id)
+        .sort((first, second) => first.sort_order - second.sort_order)
+        .map((option) => ({
+          id: option.id,
+          name: option.name,
+          price: {
+            amount: option.price,
+            currency: "COP",
+          },
+          available: option.available,
+        })),
+    }));
+
   const menu: MenuCategory[] = categories
     .filter((category) => category.restaurant_id === restaurant.id)
     .sort((first, second) => first.sort_order - second.sort_order)
@@ -68,18 +118,26 @@ function toRestaurant(
       items: products
         .filter((product) => product.category_id === category.id)
         .sort((first, second) => first.sort_order - second.sort_order)
-        .map((product): MenuItem => ({
-          id: product.id,
-          name: product.name,
-          description: product.description ?? "",
-          price: {
-            amount: product.price,
-            currency: product.currency,
-          },
-          imageUrl: product.image_url ?? "",
-          isAvailable: product.is_available,
-          tags: product.tags,
-        })),
+        .map((product): MenuItem => {
+          const addonGroupIds = productAddonGroups
+            .filter((assignment) => assignment.product_id === product.id)
+            .map((assignment) => assignment.addon_group_id);
+
+          return {
+            id: product.id,
+            name: product.name,
+            description: product.description ?? "",
+            price: {
+              amount: product.price,
+              currency: product.currency,
+            },
+            imageUrl: product.image_url ?? "",
+            isAvailable: product.is_available,
+            addonGroupIds,
+            addonGroups: restaurantAddonGroups.filter((group) => addonGroupIds.includes(group.id)),
+            tags: product.tags,
+          };
+        }),
     }));
 
   return {
@@ -93,6 +151,7 @@ function toRestaurant(
     googleMapsUrl: restaurant.google_maps_url,
     whatsappUrl: restaurant.whatsapp_url,
     theme: restaurant.theme ?? "light",
+    addonGroups: restaurantAddonGroups,
     banners: banners
       .filter((banner) => banner.restaurant_id === restaurant.id)
       .sort((first, second) => first.sort_order - second.sort_order)
@@ -147,7 +206,15 @@ async function fetchRestaurantsFromSupabase(userId?: string) {
     restaurantsQuery = restaurantsQuery.eq("user_id", userId);
   }
 
-  const [restaurantsResult, categoriesResult, productsResult, bannersResult] = await Promise.all([
+  const [
+    restaurantsResult,
+    categoriesResult,
+    productsResult,
+    bannersResult,
+    addonGroupsResult,
+    addonOptionsResult,
+    productAddonGroupsResult,
+  ] = await Promise.all([
     restaurantsQuery,
     supabase
       .from("categories")
@@ -160,19 +227,30 @@ async function fetchRestaurantsFromSupabase(userId?: string) {
       .select("*")
       .eq("is_active", true)
       .order("sort_order", { ascending: true }),
+    supabase.from("addon_groups").select("*").order("name", { ascending: true }),
+    supabase.from("addon_options").select("*").order("sort_order", { ascending: true }),
+    supabase.from("product_addon_groups").select("*"),
   ]);
 
   normalizeSupabaseError(restaurantsResult.error);
   normalizeSupabaseError(categoriesResult.error);
   normalizeSupabaseError(productsResult.error);
   normalizeSupabaseError(bannersResult.error);
+  normalizeSupabaseError(addonGroupsResult.error);
+  normalizeSupabaseError(addonOptionsResult.error);
+  normalizeSupabaseError(productAddonGroupsResult.error);
 
   const restaurants = (restaurantsResult.data ?? []) as RestaurantRow[];
   const categories = (categoriesResult.data ?? []) as CategoryRow[];
   const products = (productsResult.data ?? []) as ProductRow[];
   const banners = (bannersResult.data ?? []) as BannerRow[];
+  const addonGroups = (addonGroupsResult.data ?? []) as AddonGroupRow[];
+  const addonOptions = (addonOptionsResult.data ?? []) as AddonOptionRow[];
+  const productAddonGroups = (productAddonGroupsResult.data ?? []) as ProductAddonGroupRow[];
 
-  return restaurants.map((restaurant) => toRestaurant(restaurant, categories, products, banners));
+  return restaurants.map((restaurant) =>
+    toRestaurant(restaurant, categories, products, banners, addonGroups, addonOptions, productAddonGroups),
+  );
 }
 
 async function replaceRestaurantGraph(restaurant: Restaurant, userId?: string) {
@@ -201,10 +279,52 @@ async function replaceRestaurantGraph(restaurant: Restaurant, userId?: string) {
   const restaurantId = restaurantResult.data.id;
 
   await Promise.all([
+    supabase.from("product_addon_groups").delete().eq("restaurant_id", restaurantId),
+    supabase.from("addon_options").delete().eq("restaurant_id", restaurantId),
+    supabase.from("addon_groups").delete().eq("restaurant_id", restaurantId),
     supabase.from("banners").delete().eq("restaurant_id", restaurantId),
     supabase.from("products").delete().eq("restaurant_id", restaurantId),
     supabase.from("categories").delete().eq("restaurant_id", restaurantId),
   ]);
+
+  const addonGroupIdMap = new Map<string, string>();
+
+  for (const group of restaurant.addonGroups) {
+    const groupResult = await supabase
+      .from("addon_groups")
+      .insert({
+        restaurant_id: restaurantId,
+        name: group.name,
+        required: group.required,
+        multiple: group.multiple,
+        min_select: group.minSelect,
+        max_select: group.maxSelect,
+      })
+      .select("id")
+      .single();
+
+    normalizeSupabaseError(groupResult.error);
+
+    if (!groupResult.data) {
+      throw new Error("Supabase no devolvio el grupo de adiciones guardado.");
+    }
+
+    addonGroupIdMap.set(group.id, groupResult.data.id);
+
+    if (group.options.length) {
+      const optionsResult = await supabase.from("addon_options").insert(
+        group.options.map((option, optionIndex) => ({
+          restaurant_id: restaurantId,
+          group_id: groupResult.data.id,
+          name: option.name,
+          price: option.price.amount,
+          available: option.available,
+          sort_order: optionIndex,
+        })),
+      );
+      normalizeSupabaseError(optionsResult.error);
+    }
+  }
 
   if (restaurant.banners.length) {
     const bannersResult = await supabase.from("banners").insert(
@@ -239,9 +359,10 @@ async function replaceRestaurantGraph(restaurant: Restaurant, userId?: string) {
       throw new Error("Supabase no devolvio la categoria guardada.");
     }
 
-    if (category.items.length) {
-      const productsResult = await supabase.from("products").insert(
-        category.items.map((item, productIndex) => ({
+    for (const [productIndex, item] of category.items.entries()) {
+      const productResult = await supabase
+        .from("products")
+        .insert({
           restaurant_id: restaurantId,
           category_id: categoryResult.data.id,
           name: item.name,
@@ -252,9 +373,30 @@ async function replaceRestaurantGraph(restaurant: Restaurant, userId?: string) {
           tags: item.tags ?? [],
           is_available: item.isAvailable,
           sort_order: productIndex,
-        })),
-      );
-      normalizeSupabaseError(productsResult.error);
+        })
+        .select("id")
+        .single();
+
+      normalizeSupabaseError(productResult.error);
+
+      if (!productResult.data) {
+        throw new Error("Supabase no devolvio el producto guardado.");
+      }
+
+      const mappedAddonGroupIds = (item.addonGroupIds ?? [])
+        .map((groupId) => addonGroupIdMap.get(groupId) ?? groupId)
+        .filter(Boolean);
+
+      if (mappedAddonGroupIds.length) {
+        const assignmentResult = await supabase.from("product_addon_groups").insert(
+          mappedAddonGroupIds.map((groupId) => ({
+            restaurant_id: restaurantId,
+            product_id: productResult.data.id,
+            addon_group_id: groupId,
+          })),
+        );
+        normalizeSupabaseError(assignmentResult.error);
+      }
     }
   }
 }

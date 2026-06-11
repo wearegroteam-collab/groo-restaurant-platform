@@ -3,6 +3,23 @@ export type Money = {
   currency: "COP" | "USD";
 };
 
+export type AddonOption = {
+  id: string;
+  name: string;
+  price: Money;
+  available: boolean;
+};
+
+export type AddonGroup = {
+  id: string;
+  name: string;
+  required: boolean;
+  multiple: boolean;
+  minSelect: number;
+  maxSelect: number | null;
+  options: AddonOption[];
+};
+
 export type MenuItem = {
   id: string;
   name: string;
@@ -10,6 +27,8 @@ export type MenuItem = {
   price: Money;
   imageUrl: string;
   isAvailable: boolean;
+  addonGroupIds?: string[];
+  addonGroups?: AddonGroup[];
   tags?: string[];
 };
 
@@ -41,5 +60,6 @@ export type Restaurant = {
   whatsappUrl: string;
   theme: MenuTheme;
   banners: MenuBanner[];
+  addonGroups: AddonGroup[];
   menu: MenuCategory[];
 };

@@ -218,6 +218,132 @@ export type Database = {
           },
         ];
       };
+      addon_groups: {
+        Row: {
+          id: string;
+          restaurant_id: string;
+          name: string;
+          required: boolean;
+          multiple: boolean;
+          min_select: number;
+          max_select: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          restaurant_id: string;
+          name: string;
+          required?: boolean;
+          multiple?: boolean;
+          min_select?: number;
+          max_select?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          name?: string;
+          required?: boolean;
+          multiple?: boolean;
+          min_select?: number;
+          max_select?: number | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "addon_groups_restaurant_id_fkey";
+            columns: ["restaurant_id"];
+            isOneToOne: false;
+            referencedRelation: "restaurants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      addon_options: {
+        Row: {
+          id: string;
+          restaurant_id: string;
+          group_id: string;
+          name: string;
+          price: number;
+          available: boolean;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          restaurant_id: string;
+          group_id: string;
+          name: string;
+          price?: number;
+          available?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          name?: string;
+          price?: number;
+          available?: boolean;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "addon_options_group_id_fkey";
+            columns: ["group_id"];
+            isOneToOne: false;
+            referencedRelation: "addon_groups";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "addon_options_restaurant_id_fkey";
+            columns: ["restaurant_id"];
+            isOneToOne: false;
+            referencedRelation: "restaurants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_addon_groups: {
+        Row: {
+          restaurant_id: string;
+          product_id: string;
+          addon_group_id: string;
+          created_at: string;
+        };
+        Insert: {
+          restaurant_id: string;
+          product_id: string;
+          addon_group_id: string;
+          created_at?: string;
+        };
+        Update: Record<string, never>;
+        Relationships: [
+          {
+            foreignKeyName: "product_addon_groups_addon_group_id_fkey";
+            columns: ["addon_group_id"];
+            isOneToOne: false;
+            referencedRelation: "addon_groups";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_addon_groups_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_addon_groups_restaurant_id_fkey";
+            columns: ["restaurant_id"];
+            isOneToOne: false;
+            referencedRelation: "restaurants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
