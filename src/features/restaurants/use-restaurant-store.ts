@@ -24,6 +24,11 @@ type RestaurantRow = {
   address: string;
   whatsapp_url: string;
   google_maps_url: string;
+  delivery_fee: number | null;
+  bank_name: string | null;
+  bank_account_type: string | null;
+  bank_account_number: string | null;
+  bank_account_holder: string | null;
   theme: "light" | "dark" | null;
   is_active: boolean | null;
   user_id: string | null;
@@ -178,6 +183,11 @@ function toRestaurant(
     logoUrl: restaurant.logo_url ?? DEFAULT_IMAGE_URL,
     googleMapsUrl: restaurant.google_maps_url,
     whatsappUrl: restaurant.whatsapp_url,
+    deliveryFee: restaurant.delivery_fee ?? 0,
+    bankName: restaurant.bank_name ?? "",
+    bankAccountType: restaurant.bank_account_type ?? "",
+    bankAccountNumber: restaurant.bank_account_number ?? "",
+    bankAccountHolder: restaurant.bank_account_holder ?? "",
     theme: restaurant.theme ?? "light",
     isActive: restaurant.is_active ?? true,
     canShowPublicMenu:
@@ -222,6 +232,11 @@ function toRestaurantInsert(restaurant: Restaurant) {
     address: restaurant.address,
     whatsapp_url: restaurant.whatsappUrl,
     google_maps_url: restaurant.googleMapsUrl,
+    delivery_fee: restaurant.deliveryFee,
+    bank_name: restaurant.bankName || null,
+    bank_account_type: restaurant.bankAccountType || null,
+    bank_account_number: restaurant.bankAccountNumber || null,
+    bank_account_holder: restaurant.bankAccountHolder || null,
     theme: restaurant.theme,
     is_active: restaurant.isActive ?? true,
   };
@@ -236,6 +251,11 @@ function toRestaurantUpdate(restaurant: Restaurant) {
     address: restaurant.address,
     whatsapp_url: restaurant.whatsappUrl,
     google_maps_url: restaurant.googleMapsUrl,
+    delivery_fee: restaurant.deliveryFee,
+    bank_name: restaurant.bankName || null,
+    bank_account_type: restaurant.bankAccountType || null,
+    bank_account_number: restaurant.bankAccountNumber || null,
+    bank_account_holder: restaurant.bankAccountHolder || null,
     theme: restaurant.theme,
     is_active: restaurant.isActive ?? true,
   };

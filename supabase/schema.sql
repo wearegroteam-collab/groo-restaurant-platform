@@ -26,6 +26,11 @@ create table if not exists public.restaurants (
   address text not null,
   whatsapp_url text not null,
   google_maps_url text not null,
+  delivery_fee integer not null default 0 check (delivery_fee >= 0),
+  bank_name text,
+  bank_account_type text,
+  bank_account_number text,
+  bank_account_holder text,
   theme text not null default 'light' check (theme in ('light', 'dark')),
   is_active boolean not null default true,
   owner_id uuid references public.users(id) on delete set null,
@@ -85,6 +90,34 @@ add column if not exists theme text not null default 'light';
 
 alter table public.restaurants
 add column if not exists is_active boolean not null default true;
+
+alter table public.restaurants
+add column if not exists delivery_fee integer not null default 0;
+
+alter table public.restaurants
+add column if not exists bank_name text;
+
+alter table public.restaurants
+add column if not exists bank_account_type text;
+
+alter table public.restaurants
+add column if not exists bank_account_number text;
+
+alter table public.restaurants
+add column if not exists bank_account_holder text;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'restaurants_delivery_fee_check'
+      and conrelid = 'public.restaurants'::regclass
+  ) then
+    alter table public.restaurants
+    add constraint restaurants_delivery_fee_check check (delivery_fee >= 0);
+  end if;
+end $$;
 
 do $$
 begin

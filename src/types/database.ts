@@ -68,6 +68,11 @@ export type Database = {
           address: string;
           whatsapp_url: string;
           google_maps_url: string;
+          delivery_fee: number;
+          bank_name: string | null;
+          bank_account_type: string | null;
+          bank_account_number: string | null;
+          bank_account_holder: string | null;
           theme: "light" | "dark";
           is_active: boolean;
           user_id: string | null;
@@ -83,6 +88,11 @@ export type Database = {
           address: string;
           whatsapp_url: string;
           google_maps_url: string;
+          delivery_fee?: number;
+          bank_name?: string | null;
+          bank_account_type?: string | null;
+          bank_account_number?: string | null;
+          bank_account_holder?: string | null;
           theme?: "light" | "dark";
           is_active?: boolean;
           user_id?: string | null;
@@ -97,6 +107,11 @@ export type Database = {
           address?: string;
           whatsapp_url?: string;
           google_maps_url?: string;
+          delivery_fee?: number;
+          bank_name?: string | null;
+          bank_account_type?: string | null;
+          bank_account_number?: string | null;
+          bank_account_holder?: string | null;
           theme?: "light" | "dark";
           is_active?: boolean;
           user_id?: string | null;

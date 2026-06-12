@@ -49,8 +49,20 @@ type AdminDashboardProps = {
 
 type RestaurantForm = Pick<
   Restaurant,
-  "slug" | "name" | "address" | "googleMapsUrl" | "whatsappUrl" | "logoUrl" | "theme"
->;
+  | "slug"
+  | "name"
+  | "address"
+  | "googleMapsUrl"
+  | "whatsappUrl"
+  | "logoUrl"
+  | "theme"
+  | "bankName"
+  | "bankAccountType"
+  | "bankAccountNumber"
+  | "bankAccountHolder"
+> & {
+  deliveryFee: string;
+};
 
 type CategoryForm = {
   id?: string;
@@ -188,6 +200,11 @@ const emptyRestaurant: Restaurant = {
   logoUrl: "",
   googleMapsUrl: "",
   whatsappUrl: "",
+  deliveryFee: 0,
+  bankName: "",
+  bankAccountType: "",
+  bankAccountNumber: "",
+  bankAccountHolder: "",
   theme: "light",
   banners: [],
   addonGroups: [],
@@ -515,6 +532,15 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
       errors.whatsappUrl = "El numero debe tener 10 digitos y empezar por 3.";
     }
 
+    const deliveryFee = Number(restaurantForm.deliveryFee);
+
+    if (
+      restaurantForm.deliveryFee.trim() &&
+      (!Number.isInteger(deliveryFee) || deliveryFee < 0)
+    ) {
+      errors.deliveryFee = "El valor del domicilio debe ser un numero entero mayor o igual a 0.";
+    }
+
     if (!restaurantForm.logoUrl.trim()) {
       errors.logoUrl = "La URL del logo es obligatoria.";
     }
@@ -540,6 +566,11 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
             logoUrl: restaurantForm.logoUrl.trim(),
             googleMapsUrl: restaurantForm.googleMapsUrl.trim(),
             whatsappUrl: whatsappNumber,
+            deliveryFee: restaurantForm.deliveryFee.trim() ? deliveryFee : 0,
+            bankName: restaurantForm.bankName.trim(),
+            bankAccountType: restaurantForm.bankAccountType.trim(),
+            bankAccountNumber: restaurantForm.bankAccountNumber.trim(),
+            bankAccountHolder: restaurantForm.bankAccountHolder.trim(),
             theme: restaurantForm.theme,
             isActive: true,
             banners: [],
@@ -565,6 +596,11 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
           location: restaurantForm.address.trim(),
           googleMapsUrl: restaurantForm.googleMapsUrl.trim(),
           whatsappUrl: whatsappNumber,
+          deliveryFee: restaurantForm.deliveryFee.trim() ? deliveryFee : 0,
+          bankName: restaurantForm.bankName.trim(),
+          bankAccountType: restaurantForm.bankAccountType.trim(),
+          bankAccountNumber: restaurantForm.bankAccountNumber.trim(),
+          bankAccountHolder: restaurantForm.bankAccountHolder.trim(),
           logoUrl: restaurantForm.logoUrl.trim(),
           theme: restaurantForm.theme,
         }));
@@ -594,6 +630,11 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
         address: "",
         googleMapsUrl: "",
         whatsappUrl: "",
+        deliveryFee: "0",
+        bankName: "",
+        bankAccountType: "",
+        bankAccountNumber: "",
+        bankAccountHolder: "",
         logoUrl: "",
         theme: "light",
       });
@@ -1312,6 +1353,11 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
                   address: "",
                   googleMapsUrl: "",
                   whatsappUrl: "",
+                  deliveryFee: "0",
+                  bankName: "",
+                  bankAccountType: "",
+                  bankAccountNumber: "",
+                  bankAccountHolder: "",
                   logoUrl: "",
                   theme: "light",
                 });
@@ -1585,6 +1631,76 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
                     Ingresa solo el numero celular colombiano. No incluyas +57, espacios ni enlaces.
                   </span>
                 </Field>
+                <Field error={restaurantErrors.deliveryFee} label="Valor domicilio">
+                  <input
+                    className={inputClass}
+                    inputMode="numeric"
+                    min={0}
+                    placeholder="0"
+                    type="number"
+                    value={restaurantForm.deliveryFee}
+                    onChange={(event) =>
+                      setRestaurantForm({
+                        ...restaurantForm,
+                        deliveryFee: event.target.value.replace(/\D/g, ""),
+                      })
+                    }
+                  />
+                </Field>
+                <div className="grid gap-4 rounded-lg border border-ink/10 bg-ink/5 p-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <p className="text-sm font-bold">Datos bancarios para transferencias</p>
+                    <p className="mt-1 text-xs text-ink/55">
+                      Se muestran en el carrito cuando el cliente elige Transferencia.
+                    </p>
+                  </div>
+                  <Field label="Banco">
+                    <input
+                      className={inputClass}
+                      value={restaurantForm.bankName}
+                      onChange={(event) =>
+                        setRestaurantForm({ ...restaurantForm, bankName: event.target.value })
+                      }
+                    />
+                  </Field>
+                  <Field label="Tipo de cuenta">
+                    <input
+                      className={inputClass}
+                      placeholder="Ahorros"
+                      value={restaurantForm.bankAccountType}
+                      onChange={(event) =>
+                        setRestaurantForm({
+                          ...restaurantForm,
+                          bankAccountType: event.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field label="Numero de cuenta">
+                    <input
+                      className={inputClass}
+                      value={restaurantForm.bankAccountNumber}
+                      onChange={(event) =>
+                        setRestaurantForm({
+                          ...restaurantForm,
+                          bankAccountNumber: event.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field label="Titular">
+                    <input
+                      className={inputClass}
+                      value={restaurantForm.bankAccountHolder}
+                      onChange={(event) =>
+                        setRestaurantForm({
+                          ...restaurantForm,
+                          bankAccountHolder: event.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+                </div>
                 <Field label="Estilo del menu">
                   <select
                     className={inputClass}
@@ -2435,6 +2551,11 @@ function useStateFromRestaurant(restaurant: Restaurant) {
     address: restaurant.address,
     googleMapsUrl: restaurant.googleMapsUrl,
     whatsappUrl: extractColombianMobile(restaurant.whatsappUrl),
+    deliveryFee: String(restaurant.deliveryFee ?? 0),
+    bankName: restaurant.bankName,
+    bankAccountType: restaurant.bankAccountType,
+    bankAccountNumber: restaurant.bankAccountNumber,
+    bankAccountHolder: restaurant.bankAccountHolder,
     logoUrl: restaurant.logoUrl,
     theme: restaurant.theme,
   });
@@ -2446,11 +2567,21 @@ function useStateFromRestaurant(restaurant: Restaurant) {
       address: restaurant.address,
       googleMapsUrl: restaurant.googleMapsUrl,
       whatsappUrl: extractColombianMobile(restaurant.whatsappUrl),
+      deliveryFee: String(restaurant.deliveryFee ?? 0),
+      bankName: restaurant.bankName,
+      bankAccountType: restaurant.bankAccountType,
+      bankAccountNumber: restaurant.bankAccountNumber,
+      bankAccountHolder: restaurant.bankAccountHolder,
       logoUrl: restaurant.logoUrl,
       theme: restaurant.theme,
     });
   }, [
     restaurant.address,
+    restaurant.bankAccountHolder,
+    restaurant.bankAccountNumber,
+    restaurant.bankAccountType,
+    restaurant.bankName,
+    restaurant.deliveryFee,
     restaurant.googleMapsUrl,
     restaurant.id,
     restaurant.logoUrl,

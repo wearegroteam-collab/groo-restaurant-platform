@@ -69,6 +69,11 @@ export type Restaurant = {
   logoUrl: string;
   googleMapsUrl: string;
   whatsappUrl: string;
+  deliveryFee: number;
+  bankName: string;
+  bankAccountType: string;
+  bankAccountNumber: string;
+  bankAccountHolder: string;
   theme: MenuTheme;
   isActive?: boolean;
   canShowPublicMenu?: boolean;
