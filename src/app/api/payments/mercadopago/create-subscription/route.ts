@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { getAppUrl } from "@/lib/config/app-url";
 import { getPlanByBranchLimit } from "@/features/subscriptions/plans";
 
 type CreateSubscriptionBody = {
@@ -15,13 +16,12 @@ function addDays(date: Date, days: number) {
 
 export async function POST(request: Request) {
   const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const appUrl = getAppUrl();
 
-  if (!accessToken || !appUrl) {
+  if (!accessToken) {
     return NextResponse.json(
       {
-        error:
-          "Mercado Pago no esta configurado. Define MERCADOPAGO_ACCESS_TOKEN y NEXT_PUBLIC_APP_URL.",
+        error: "Mercado Pago no esta configurado. Define MERCADOPAGO_ACCESS_TOKEN.",
       },
       { status: 503 },
     );

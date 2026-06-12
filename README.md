@@ -24,5 +24,7 @@ Copia `.env.example` a `.env.local` y completa:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `MERCADOPAGO_ACCESS_TOKEN`
+- `NEXT_PUBLIC_APP_URL=https://menus.grooteam.com`
 
 La capa inicial esta en `src/lib/supabase`.
