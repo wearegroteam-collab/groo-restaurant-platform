@@ -19,6 +19,7 @@ import {
 import type { AddonGroup, AddonOption, MenuBanner, MenuCategory, MenuItem, Restaurant } from "@/types/menu";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/layout/container";
+import { PublicMenuShare } from "@/components/admin/public-menu-share";
 import { formatMoney } from "@/features/menus/format-money";
 import { logout, useAuth } from "@/features/auth/use-auth";
 import { useRestaurantsStore } from "@/features/restaurants/use-restaurant-store";
@@ -302,16 +303,6 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
     }
 
     return updateRestaurantInStore(restaurant.id, updater);
-  }
-
-  function copyPublicMenuLink() {
-    const origin = window.location.origin;
-    const publicMenuUrl = `${origin}/${restaurant.slug}/menu`;
-
-    navigator.clipboard
-      .writeText(publicMenuUrl)
-      .then(() => showToast("Enlace copiado.", "success"))
-      .catch(() => showToast("No se pudo copiar el enlace.", "error"));
   }
 
   async function selectPlan(plan: Plan) {
@@ -1310,25 +1301,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
 
         {activeSection === "publicMenu" && !isRestaurantCreateMode ? (
           <Panel title="Menu publico">
-            <div className="grid gap-4">
-              <div className="rounded-lg border border-ink/10 bg-brand-50/60 p-4">
-                <p className="text-sm font-semibold text-ink/60">Enlace publico</p>
-                <p className="mt-1 break-all font-bold">{`/${restaurant.slug}/menu`}</p>
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Button asChild>
-                  <Link href={`/${restaurant.slug}/menu`} rel="noopener noreferrer" target="_blank">
-                    Ver menu <ExternalLink className="h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button onClick={copyPublicMenuLink} variant="outline">
-                  Copiar enlace
-                </Button>
-              </div>
-              <div className="rounded-lg border border-dashed border-ink/15 bg-white p-5 text-sm text-ink/60">
-                Espacio reservado para QR del menu.
-              </div>
-            </div>
+            <PublicMenuShare onCopied={(message) => showToast(message, "success")} slug={restaurant.slug} />
           </Panel>
         ) : null}
 
