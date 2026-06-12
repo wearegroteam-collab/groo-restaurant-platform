@@ -85,11 +85,15 @@ export async function POST(request: Request) {
   const nextPeriodEnd = addDays(now, 30);
   const status = mapPaymentStatus(payment.status);
   const supabase = createAdminClient() as unknown as SupabaseClient;
-  const updatePayload: Record<string, string | number> = {
+  const updatePayload: Record<string, string | number | null> = {
     status,
     current_period_start: now.toISOString(),
     current_period_end: nextPeriodEnd.toISOString(),
   };
+
+  if (status === "active") {
+    updatePayload.cancelled_at = null;
+  }
 
   if (payment.metadata?.plan_name) {
     updatePayload.plan_name = payment.metadata.plan_name;

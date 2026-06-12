@@ -37,12 +37,19 @@ create table if not exists public.subscriptions (
   trial_start timestamptz not null default now(),
   trial_end timestamptz not null default (now() + interval '14 days'),
   current_period_start timestamptz not null default now(),
-  current_period_end timestamptz not null default (now() + interval '14 days'),
+  current_period_end timestamptz default (now() + interval '14 days'),
+  cancelled_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 create unique index if not exists subscriptions_user_id_idx on public.subscriptions(user_id);
+
+alter table public.subscriptions
+add column if not exists cancelled_at timestamptz;
+
+alter table public.subscriptions
+alter column current_period_end drop not null;
 
 alter table public.restaurants
 add column if not exists user_id uuid references auth.users(id) on delete cascade;
@@ -251,6 +258,11 @@ create policy "Users can read own subscriptions"
 on public.subscriptions for select
 to authenticated
 using (auth.uid() = user_id);
+
+drop policy if exists "Public can read subscriptions for menu availability" on public.subscriptions;
+create policy "Public can read subscriptions for menu availability"
+on public.subscriptions for select
+using (true);
 
 drop policy if exists "Users can insert own subscriptions" on public.subscriptions;
 create policy "Users can insert own subscriptions"

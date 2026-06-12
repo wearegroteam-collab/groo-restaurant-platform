@@ -16,7 +16,8 @@ export type Subscription = {
   trial_start: string;
   trial_end: string;
   current_period_start: string;
-  current_period_end: string;
+  current_period_end: string | null;
+  cancelled_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -82,34 +83,31 @@ export async function getLatestSubscription(userId: string) {
 }
 
 export async function getActiveSubscription(userId: string) {
-  const supabase = createClient() as unknown as SupabaseClient;
-  const now = new Date().toISOString();
-  const { data, error } = await supabase
-    .from("subscriptions")
-    .select("*")
-    .eq("user_id", userId)
-    .in("status", ["trialing", "active"])
-    .gte("current_period_end", now)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return (data as Subscription | null) ?? null;
+  const subscription = await getLatestSubscription(userId);
+  return isSubscriptionValid(subscription) ? subscription : null;
 }
 
 export function isSubscriptionWritable(subscription: Subscription | null) {
+  return isSubscriptionValid(subscription);
+}
+
+export function isSubscriptionValid(subscription: Subscription | null) {
   if (!subscription) {
     return false;
   }
 
-  return (
-    ["trialing", "active"].includes(subscription.status) &&
-    new Date(subscription.current_period_end).getTime() >= Date.now()
-  );
+  if (subscription.status === "trialing") {
+    return new Date(subscription.trial_end).getTime() > Date.now();
+  }
+
+  if (subscription.status === "active") {
+    return (
+      !subscription.current_period_end ||
+      new Date(subscription.current_period_end).getTime() > Date.now()
+    );
+  }
+
+  return false;
 }
 
 export function getTrialDaysRemaining(subscription: Subscription | null) {
@@ -133,10 +131,30 @@ export async function activatePlan(userId: string, plan: Plan) {
       branch_limit: plan.branchLimit,
       amount: plan.amount,
       status: "active",
+      cancelled_at: null,
       current_period_start: now.toISOString(),
       current_period_end: nextPeriodEnd.toISOString(),
     })
     .eq("id", subscription.id)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as Subscription;
+}
+
+export async function cancelSubscription(subscriptionId: string) {
+  const supabase = createClient() as unknown as SupabaseClient;
+  const { data, error } = await supabase
+    .from("subscriptions")
+    .update({
+      status: "cancelled",
+      cancelled_at: new Date().toISOString(),
+    })
+    .eq("id", subscriptionId)
     .select("*")
     .single();
 

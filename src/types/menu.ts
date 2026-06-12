@@ -59,6 +59,7 @@ export type Restaurant = {
   googleMapsUrl: string;
   whatsappUrl: string;
   theme: MenuTheme;
+  canShowPublicMenu?: boolean;
   banners: MenuBanner[];
   addonGroups: AddonGroup[];
   menu: MenuCategory[];

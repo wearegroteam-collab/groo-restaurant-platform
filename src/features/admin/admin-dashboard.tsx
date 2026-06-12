@@ -24,6 +24,7 @@ import { logout, useAuth } from "@/features/auth/use-auth";
 import { useRestaurantsStore } from "@/features/restaurants/use-restaurant-store";
 import {
   activatePlan,
+  cancelSubscription,
   getLatestSubscription,
   getTrialDaysRemaining,
   isSubscriptionWritable,
@@ -205,7 +206,7 @@ function delay(ms = 350) {
   });
 }
 
-function formatDate(value?: string) {
+function formatDate(value?: string | null) {
   if (!value) {
     return "Pendiente";
   }
@@ -259,16 +260,21 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
   const [productCategoryFilter, setProductCategoryFilter] = useState("all");
   const [restaurantToDelete, setRestaurantToDelete] = useState<Restaurant | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [isCancelSubscriptionOpen, setIsCancelSubscriptionOpen] = useState(false);
+  const [cancelConfirmation, setCancelConfirmation] = useState("");
   const [activeSection, setActiveSection] = useState<AdminSection>("restaurant");
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(false);
-  const canManageRestaurant = isLoadingSubscription || isSubscriptionWritable(subscription);
+  const canManageRestaurant = isSubscriptionWritable(subscription);
+  const isSubscriptionCancelled = subscription?.status === "cancelled";
   const trialDaysRemaining = getTrialDaysRemaining(subscription);
-  const subscriptionStatus = subscription
-    ? isSubscriptionWritable(subscription)
+  const subscriptionStatus = !subscription
+    ? "Sin plan"
+    : canManageRestaurant
       ? subscription.status
-      : "expired"
-    : "Sin plan";
+      : isSubscriptionCancelled
+        ? "cancelled"
+        : "expired";
 
   async function refreshSubscription() {
     if (!session) {
@@ -321,6 +327,25 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
       showToast("Plan actualizado.", "success");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "No se pudo actualizar el plan.", "error");
+    } finally {
+      setSavingTarget(null);
+    }
+  }
+
+  async function confirmCancelSubscription() {
+    if (!subscription || cancelConfirmation !== "CANCELAR") {
+      return;
+    }
+
+    setSavingTarget("cancel-subscription");
+
+    try {
+      setSubscription(await cancelSubscription(subscription.id));
+      setIsCancelSubscriptionOpen(false);
+      setCancelConfirmation("");
+      showToast("Suscripcion cancelada.", "success");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "No se pudo cancelar la suscripcion.", "error");
     } finally {
       setSavingTarget(null);
     }
@@ -733,6 +758,12 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
       return;
     }
 
+    if (!canManageRestaurant) {
+      showToast("Activa un plan para subir imagenes.", "error");
+      setActiveSection("subscription");
+      return;
+    }
+
     setSavingTarget("product-image");
 
     try {
@@ -751,6 +782,12 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
 
   async function selectLogoImage(file: File | undefined) {
     if (!file) {
+      return;
+    }
+
+    if (!canManageRestaurant) {
+      showToast("Activa un plan para subir imagenes.", "error");
+      setActiveSection("subscription");
       return;
     }
 
@@ -776,6 +813,12 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
 
   async function selectBannerImage(file: File | undefined) {
     if (!file) {
+      return;
+    }
+
+    if (!canManageRestaurant) {
+      showToast("Activa un plan para subir imagenes.", "error");
+      setActiveSection("subscription");
       return;
     }
 
@@ -1202,12 +1245,19 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
         {!canManageRestaurant && !isLoadingSubscription ? (
           <section className="grid gap-3 rounded-lg border border-red-200 bg-red-50 p-5 sm:grid-cols-[1fr_auto] sm:items-center">
             <div>
-              <p className="font-bold text-red-700">Tu periodo de prueba expiro</p>
+              <p className="font-bold text-red-700">
+                {isSubscriptionCancelled ? "Tu suscripcion esta cancelada" : "Tu plan no esta activo"}
+              </p>
               <p className="mt-1 text-sm text-red-700/75">
-                Tus datos siguen guardados. Activa un plan para crear o editar restaurantes.
+                Tus datos siguen guardados.{" "}
+                {isSubscriptionCancelled
+                  ? "Reactiva un plan para volver a crear o editar."
+                  : "Activa un plan para crear o editar restaurantes."}
               </p>
             </div>
-            <Button onClick={() => setActiveSection("subscription")}>Activar plan</Button>
+            <Button onClick={() => setActiveSection("subscription")}>
+              {isSubscriptionCancelled ? "Reactivar plan" : "Activar plan"}
+            </Button>
           </section>
         ) : null}
 
@@ -1322,9 +1372,11 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
               <div className="grid gap-4 md:grid-cols-3">
                 {plans.map((plan) => {
                   const isCurrentPlan = subscription?.branch_limit === plan.branchLimit;
-                  const isExpired = !canManageRestaurant && !isLoadingSubscription;
-                  const actionLabel = isExpired
-                    ? "Activar plan"
+                  const isInactive = !canManageRestaurant && !isLoadingSubscription;
+                  const actionLabel = subscription?.status === "cancelled"
+                    ? "Reactivar plan"
+                    : isInactive
+                      ? "Activar plan"
                     : isCurrentPlan
                       ? "Actualizar plan"
                       : "Cambiar plan";
@@ -1355,6 +1407,33 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
                   );
                 })}
               </div>
+
+              {subscription ? (
+                <div className="rounded-lg border border-ink/10 bg-white p-4">
+                  <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
+                    <div>
+                      <p className="font-bold">Cancelar suscripcion</p>
+                      <p className="mt-1 text-sm text-ink/60">
+                        Tus datos no se borran, pero el menu publico quedara oculto y el admin
+                        pasara a modo solo lectura.
+                      </p>
+                    </div>
+                    <Button
+                      disabled={
+                        subscription.status === "cancelled" ||
+                        savingTarget === "cancel-subscription"
+                      }
+                      onClick={() => {
+                        setCancelConfirmation("");
+                        setIsCancelSubscriptionOpen(true);
+                      }}
+                      variant="outline"
+                    >
+                      Cancelar suscripcion
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </Panel>
         ) : null}
@@ -2109,6 +2188,51 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
               >
                 <Trash2 className="h-4 w-4" />
                 {savingTarget === "delete-restaurant" ? "Eliminando..." : "Eliminar definitivamente"}
+              </Button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+      {isCancelSubscriptionOpen ? (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-ink/55 p-4">
+          <section className="w-full max-w-md rounded-lg border border-ink/10 bg-white p-5 shadow-soft">
+            <div className="space-y-2">
+              <p className="text-sm font-bold uppercase tracking-[0.14em] text-red-600">
+                Confirmar cancelacion
+              </p>
+              <h2 className="text-xl font-bold">Cancelar suscripcion</h2>
+              <p className="text-sm leading-6 text-ink/65">
+                El menu publico dejara de mostrarse y el panel quedara en solo lectura. Tus datos
+                seguiran guardados. Escribe <span className="font-bold text-ink">CANCELAR</span>{" "}
+                para continuar.
+              </p>
+            </div>
+
+            <input
+              className={`${inputClass} mt-4`}
+              placeholder="CANCELAR"
+              value={cancelConfirmation}
+              onChange={(event) => setCancelConfirmation(event.target.value)}
+            />
+
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                disabled={savingTarget === "cancel-subscription"}
+                onClick={() => {
+                  setIsCancelSubscriptionOpen(false);
+                  setCancelConfirmation("");
+                }}
+                variant="outline"
+              >
+                Volver
+              </Button>
+              <Button
+                disabled={
+                  cancelConfirmation !== "CANCELAR" || savingTarget === "cancel-subscription"
+                }
+                onClick={confirmCancelSubscription}
+              >
+                {savingTarget === "cancel-subscription" ? "Cancelando..." : "Cancelar suscripcion"}
               </Button>
             </div>
           </section>

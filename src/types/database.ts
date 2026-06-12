@@ -90,7 +90,8 @@ export type Database = {
           trial_start: string;
           trial_end: string;
           current_period_start: string;
-          current_period_end: string;
+          current_period_end: string | null;
+          cancelled_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -104,7 +105,8 @@ export type Database = {
           trial_start?: string;
           trial_end?: string;
           current_period_start?: string;
-          current_period_end?: string;
+          current_period_end?: string | null;
+          cancelled_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -116,7 +118,8 @@ export type Database = {
           trial_start?: string;
           trial_end?: string;
           current_period_start?: string;
-          current_period_end?: string;
+          current_period_end?: string | null;
+          cancelled_at?: string | null;
           updated_at?: string;
         };
         Relationships: [

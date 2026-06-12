@@ -7,7 +7,9 @@ import { createClient } from "@/lib/supabase/client";
 import {
   ensureTrialSubscription,
   getLatestSubscription,
+  isSubscriptionValid,
   isSubscriptionWritable,
+  type Subscription,
 } from "@/features/subscriptions/subscriptions";
 
 const DEFAULT_IMAGE_URL =
@@ -81,6 +83,8 @@ type ProductAddonGroupRow = {
   addon_group_id: string;
 };
 
+type SubscriptionRow = Subscription;
+
 function toRestaurant(
   restaurant: RestaurantRow,
   categories: CategoryRow[],
@@ -89,7 +93,11 @@ function toRestaurant(
   addonGroups: AddonGroupRow[],
   addonOptions: AddonOptionRow[],
   productAddonGroups: ProductAddonGroupRow[],
+  subscriptions: SubscriptionRow[],
 ): Restaurant {
+  const ownerSubscription = subscriptions.find(
+    (subscription) => subscription.user_id === restaurant.user_id,
+  );
   const restaurantAddonGroups: AddonGroup[] = addonGroups
     .filter((group) => group.restaurant_id === restaurant.id)
     .map((group) => ({
@@ -156,6 +164,7 @@ function toRestaurant(
     googleMapsUrl: restaurant.google_maps_url,
     whatsappUrl: restaurant.whatsapp_url,
     theme: restaurant.theme ?? "light",
+    canShowPublicMenu: isSubscriptionValid(ownerSubscription ?? null),
     addonGroups: restaurantAddonGroups,
     banners: banners
       .filter((banner) => banner.restaurant_id === restaurant.id)
@@ -219,6 +228,7 @@ async function fetchRestaurantsFromSupabase(userId?: string) {
     addonGroupsResult,
     addonOptionsResult,
     productAddonGroupsResult,
+    subscriptionsResult,
   ] = await Promise.all([
     restaurantsQuery,
     supabase
@@ -235,6 +245,7 @@ async function fetchRestaurantsFromSupabase(userId?: string) {
     supabase.from("addon_groups").select("*").order("name", { ascending: true }),
     supabase.from("addon_options").select("*").order("sort_order", { ascending: true }),
     supabase.from("product_addon_groups").select("*"),
+    supabase.from("subscriptions").select("*"),
   ]);
 
   normalizeSupabaseError(restaurantsResult.error);
@@ -244,6 +255,7 @@ async function fetchRestaurantsFromSupabase(userId?: string) {
   normalizeSupabaseError(addonGroupsResult.error);
   normalizeSupabaseError(addonOptionsResult.error);
   normalizeSupabaseError(productAddonGroupsResult.error);
+  normalizeSupabaseError(subscriptionsResult.error);
 
   const restaurants = (restaurantsResult.data ?? []) as RestaurantRow[];
   const categories = (categoriesResult.data ?? []) as CategoryRow[];
@@ -252,9 +264,19 @@ async function fetchRestaurantsFromSupabase(userId?: string) {
   const addonGroups = (addonGroupsResult.data ?? []) as AddonGroupRow[];
   const addonOptions = (addonOptionsResult.data ?? []) as AddonOptionRow[];
   const productAddonGroups = (productAddonGroupsResult.data ?? []) as ProductAddonGroupRow[];
+  const subscriptions = (subscriptionsResult.data ?? []) as SubscriptionRow[];
 
   return restaurants.map((restaurant) =>
-    toRestaurant(restaurant, categories, products, banners, addonGroups, addonOptions, productAddonGroups),
+    toRestaurant(
+      restaurant,
+      categories,
+      products,
+      banners,
+      addonGroups,
+      addonOptions,
+      productAddonGroups,
+      subscriptions,
+    ),
   );
 }
 

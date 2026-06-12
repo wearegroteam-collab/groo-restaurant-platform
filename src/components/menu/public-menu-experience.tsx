@@ -78,6 +78,22 @@ export function PublicMenuExperience({
     );
   }
 
+  if (!currentRestaurant.canShowPublicMenu) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-[#f8faf3] px-4 text-center">
+        <div className="max-w-md space-y-3">
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-brand-600">
+            Menu temporalmente inactivo
+          </p>
+          <h1 className="text-3xl font-bold">Este menu no esta disponible temporalmente.</h1>
+          <p className="text-ink/65">
+            El restaurante debe activar o renovar su plan para volver a mostrar el menu.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   const isDark = currentRestaurant.theme === "dark";
   const currency =
     cart.lines[0]?.item.price.currency ??
