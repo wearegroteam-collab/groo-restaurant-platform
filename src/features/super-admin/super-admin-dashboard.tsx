@@ -27,6 +27,7 @@ type SuperAdminDashboardProps = {
   users: SuperAdminUser[];
   restaurants: SuperAdminRestaurant[];
   subscriptions: Subscription[];
+  errorMessage?: string;
 };
 
 type UserDetailTab = "summary" | "subscription" | "restaurants" | "permissions";
@@ -70,6 +71,7 @@ function getPlanValue(planName: string) {
 }
 
 export function SuperAdminDashboard({
+  errorMessage,
   users,
   restaurants,
   subscriptions,
@@ -114,6 +116,12 @@ export function SuperAdminDashboard({
       </header>
 
       <Container className="grid gap-6 py-6">
+        {errorMessage ? (
+          <section className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+            {errorMessage}
+          </section>
+        ) : null}
+
         {!selectedUser ? (
           <>
             <section className="grid gap-3 sm:grid-cols-3">

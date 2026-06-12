@@ -163,6 +163,21 @@ export async function getAllRestaurantsWithOwners() {
   });
 }
 
+export async function getSubscriptionByIdAsSuperAdmin(subscriptionId: string) {
+  const supabase = adminClient();
+  const { data, error } = await supabase
+    .from("subscriptions")
+    .select("*")
+    .eq("id", subscriptionId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data as Subscription | null) ?? null;
+}
+
 export async function updateSubscriptionAsSuperAdmin(input: UpdateSubscriptionInput) {
   const supabase = adminClient();
   const payload: Record<string, string | number | null> = {};

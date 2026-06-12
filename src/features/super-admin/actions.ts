@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   getSuperAdminPlan,
+  getSubscriptionByIdAsSuperAdmin,
   isSuperAdmin,
   toggleRestaurantActiveAsSuperAdmin,
   updateProfileRoleAsSuperAdmin,
@@ -13,6 +14,9 @@ import {
   type SubscriptionProvider,
 } from "@/features/super-admin/super-admin";
 import type { SubscriptionStatus } from "@/features/subscriptions/subscriptions";
+
+const BRANCH_LIMIT_ERROR = "El límite de sucursales debe ser 1, 2 o 3.";
+const BRANCH_LIMITS = [1, 2, 3] as const;
 
 async function requireSuperAdmin() {
   const supabase = await createClient();
@@ -30,25 +34,79 @@ async function requireSuperAdmin() {
 }
 
 function parseNumber(value: FormDataEntryValue | null) {
-  const parsed = Number(value);
+  const rawValue = String(value ?? "").trim();
+
+  if (!rawValue) {
+    return undefined;
+  }
+
+  if (!/^\d+$/.test(rawValue)) {
+    return undefined;
+  }
+
+  const parsed = Number(rawValue);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function isValidBranchLimit(value: number | undefined): value is 1 | 2 | 3 {
+  return BRANCH_LIMITS.includes(value as 1 | 2 | 3);
+}
+
+function resolveBranchLimit({
+  currentValue,
+  manualValue,
+  planValue,
+}: {
+  currentValue?: number;
+  manualValue?: number;
+  planValue?: number;
+}) {
+  if (manualValue !== undefined) {
+    return isValidBranchLimit(manualValue) ? manualValue : null;
+  }
+
+  if (isValidBranchLimit(planValue)) {
+    return planValue;
+  }
+
+  if (isValidBranchLimit(currentValue)) {
+    return currentValue;
+  }
+
+  return 1;
+}
+
+function redirectWithBranchLimitError(): never {
+  redirect(`/super-admin?error=${encodeURIComponent(BRANCH_LIMIT_ERROR)}`);
 }
 
 export async function updateSubscriptionAction(formData: FormData) {
   await requireSuperAdmin();
 
+  const subscriptionId = String(formData.get("subscriptionId") ?? "");
+  const currentSubscription = await getSubscriptionByIdAsSuperAdmin(subscriptionId);
   const plan = getSuperAdminPlan(String(formData.get("planName") ?? ""));
   const manualBranchLimit = parseNumber(formData.get("manualBranchLimit"));
   const manualAmount = parseNumber(formData.get("manualAmount"));
   const currentPeriodEnd = String(formData.get("currentPeriodEnd") ?? "").trim();
   const trialEnd = String(formData.get("trialEnd") ?? "").trim();
+  const branchLimit = resolveBranchLimit({
+    currentValue: currentSubscription?.branch_limit,
+    manualValue: manualBranchLimit,
+    planValue: plan?.branchLimit,
+  });
+
+  if (!branchLimit) {
+    redirectWithBranchLimitError();
+  }
 
   await updateSubscriptionAsSuperAdmin({
-    subscriptionId: String(formData.get("subscriptionId") ?? ""),
+    subscriptionId,
     status: String(formData.get("status") ?? "") as SubscriptionStatus,
-    planName: plan?.label ?? String(formData.get("planName") ?? ""),
-    branchLimit: manualBranchLimit ?? plan?.branchLimit,
-    amount: manualAmount ?? plan?.amount,
+    planName:
+      plan?.label ?? currentSubscription?.plan_name ?? String(formData.get("planName") ?? ""),
+    branchLimit,
+    amount: manualAmount ?? plan?.amount ?? currentSubscription?.amount,
     trialEnd: trialEnd || undefined,
     currentPeriodEnd: currentPeriodEnd || undefined,
     provider: String(formData.get("provider") ?? "mercadopago") as SubscriptionProvider,
@@ -81,13 +139,21 @@ export async function extendTrialAction(formData: FormData) {
 export async function manualAccessAction(formData: FormData) {
   await requireSuperAdmin();
 
-  const plan = getSuperAdminPlan(String(formData.get("planName") ?? "1_sucursal"));
+  const subscriptionId = String(formData.get("subscriptionId") ?? "");
+  const currentSubscription = await getSubscriptionByIdAsSuperAdmin(subscriptionId);
+  const branchLimit = resolveBranchLimit({
+    currentValue: currentSubscription?.branch_limit,
+  });
+
+  if (!branchLimit) {
+    redirectWithBranchLimitError();
+  }
 
   await updateSubscriptionAsSuperAdmin({
-    subscriptionId: String(formData.get("subscriptionId") ?? ""),
+    subscriptionId,
     status: "active",
-    planName: plan?.label ?? "Acceso manual",
-    branchLimit: plan?.branchLimit ?? 1,
+    planName: currentSubscription?.plan_name ?? "Acceso manual",
+    branchLimit,
     amount: 0,
     provider: "manual",
     currentPeriodEnd: null,

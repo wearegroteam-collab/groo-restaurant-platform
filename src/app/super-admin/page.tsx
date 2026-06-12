@@ -9,7 +9,14 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export default async function SuperAdminPage() {
+type SuperAdminPageProps = {
+  searchParams?: Promise<{
+    error?: string;
+  }>;
+};
+
+export default async function SuperAdminPage({ searchParams }: SuperAdminPageProps) {
+  const params = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -33,6 +40,7 @@ export default async function SuperAdminPage() {
 
   return (
     <SuperAdminDashboard
+      errorMessage={params?.error}
       restaurants={restaurants}
       subscriptions={subscriptions}
       users={users}
