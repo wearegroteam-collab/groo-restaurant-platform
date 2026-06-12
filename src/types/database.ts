@@ -28,6 +28,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      profiles: {
+        Row: {
+          id: string;
+          email: string;
+          role: "user" | "super_admin";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          email: string;
+          role?: "user" | "super_admin";
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          email?: string;
+          role?: "user" | "super_admin";
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey";
+            columns: ["id"];
+            isOneToOne: true;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       restaurants: {
         Row: {
           id: string;
@@ -39,6 +69,7 @@ export type Database = {
           whatsapp_url: string;
           google_maps_url: string;
           theme: "light" | "dark";
+          is_active: boolean;
           user_id: string | null;
           created_at: string;
           updated_at: string;
@@ -53,6 +84,7 @@ export type Database = {
           whatsapp_url: string;
           google_maps_url: string;
           theme?: "light" | "dark";
+          is_active?: boolean;
           user_id?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -66,6 +98,7 @@ export type Database = {
           whatsapp_url?: string;
           google_maps_url?: string;
           theme?: "light" | "dark";
+          is_active?: boolean;
           user_id?: string | null;
           updated_at?: string;
         };
@@ -87,6 +120,7 @@ export type Database = {
           branch_limit: number;
           amount: number;
           status: "trialing" | "active" | "expired" | "cancelled" | "past_due";
+          provider: "mercadopago" | "manual" | null;
           trial_start: string;
           trial_end: string;
           current_period_start: string;
@@ -102,6 +136,7 @@ export type Database = {
           branch_limit?: number;
           amount?: number;
           status?: "trialing" | "active" | "expired" | "cancelled" | "past_due";
+          provider?: "mercadopago" | "manual" | null;
           trial_start?: string;
           trial_end?: string;
           current_period_start?: string;
@@ -115,6 +150,7 @@ export type Database = {
           branch_limit?: number;
           amount?: number;
           status?: "trialing" | "active" | "expired" | "cancelled" | "past_due";
+          provider?: "mercadopago" | "manual" | null;
           trial_start?: string;
           trial_end?: string;
           current_period_start?: string;

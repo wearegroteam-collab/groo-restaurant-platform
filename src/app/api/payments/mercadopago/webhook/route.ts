@@ -93,6 +93,7 @@ export async function POST(request: Request) {
 
   if (status === "active") {
     updatePayload.cancelled_at = null;
+    updatePayload.provider = "mercadopago";
   }
 
   if (payment.metadata?.plan_name) {

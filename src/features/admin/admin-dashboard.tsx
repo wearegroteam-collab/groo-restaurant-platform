@@ -516,6 +516,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
             googleMapsUrl: restaurantForm.googleMapsUrl.trim(),
             whatsappUrl: whatsappNumber,
             theme: restaurantForm.theme,
+            isActive: true,
             banners: [],
             addonGroups: [],
             menu: [],

@@ -9,6 +9,14 @@ create table if not exists public.users (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  role text not null default 'user' check (role in ('user', 'super_admin')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.restaurants (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique,
@@ -19,6 +27,7 @@ create table if not exists public.restaurants (
   whatsapp_url text not null,
   google_maps_url text not null,
   theme text not null default 'light' check (theme in ('light', 'dark')),
+  is_active boolean not null default true,
   owner_id uuid references public.users(id) on delete set null,
   user_id uuid references auth.users(id) on delete cascade,
   created_at timestamptz not null default now(),
@@ -34,6 +43,7 @@ create table if not exists public.subscriptions (
   status text not null default 'trialing' check (
     status in ('trialing', 'active', 'expired', 'cancelled', 'past_due')
   ),
+  provider text default 'mercadopago' check (provider in ('mercadopago', 'manual')),
   trial_start timestamptz not null default now(),
   trial_end timestamptz not null default (now() + interval '14 days'),
   current_period_start timestamptz not null default now(),
@@ -49,6 +59,22 @@ alter table public.subscriptions
 add column if not exists cancelled_at timestamptz;
 
 alter table public.subscriptions
+add column if not exists provider text default 'mercadopago';
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'subscriptions_provider_check'
+      and conrelid = 'public.subscriptions'::regclass
+  ) then
+    alter table public.subscriptions
+    add constraint subscriptions_provider_check check (provider in ('mercadopago', 'manual'));
+  end if;
+end $$;
+
+alter table public.subscriptions
 alter column current_period_end drop not null;
 
 alter table public.restaurants
@@ -56,6 +82,9 @@ add column if not exists user_id uuid references auth.users(id) on delete cascad
 
 alter table public.restaurants
 add column if not exists theme text not null default 'light';
+
+alter table public.restaurants
+add column if not exists is_active boolean not null default true;
 
 do $$
 begin
@@ -167,6 +196,11 @@ create trigger set_users_updated_at
 before update on public.users
 for each row execute function public.set_updated_at();
 
+drop trigger if exists set_profiles_updated_at on public.profiles;
+create trigger set_profiles_updated_at
+before update on public.profiles
+for each row execute function public.set_updated_at();
+
 drop trigger if exists set_restaurants_updated_at on public.restaurants;
 create trigger set_restaurants_updated_at
 before update on public.restaurants
@@ -211,6 +245,7 @@ begin
     branch_limit,
     amount,
     status,
+    provider,
     trial_start,
     trial_end,
     current_period_start,
@@ -222,6 +257,7 @@ begin
     1,
     30000,
     'trialing',
+    'mercadopago',
     now(),
     now() + interval '14 days',
     now(),
@@ -233,12 +269,46 @@ begin
 end;
 $$ language plpgsql security definer set search_path = public;
 
+create or replace function public.create_profile_for_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, email, role)
+  values (new.id, coalesce(new.email, ''), 'user')
+  on conflict (id) do update
+  set email = excluded.email;
+
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists create_profile_on_auth_user_created on auth.users;
+create trigger create_profile_on_auth_user_created
+after insert on auth.users
+for each row execute function public.create_profile_for_new_user();
+
+insert into public.profiles (id, email, role, created_at, updated_at)
+select id, coalesce(email, ''), 'user', now(), now()
+from auth.users
+on conflict (id) do update
+set email = excluded.email;
+
 drop trigger if exists create_trial_subscription_on_auth_user_created on auth.users;
 create trigger create_trial_subscription_on_auth_user_created
 after insert on auth.users
 for each row execute function public.create_trial_subscription_for_new_user();
 
+create or replace function public.is_super_admin(check_user_id uuid default auth.uid())
+returns boolean as $$
+  select exists (
+    select 1
+    from public.profiles
+    where id = check_user_id
+      and role = 'super_admin'
+  );
+$$ language sql stable security definer set search_path = public;
+
 alter table public.users enable row level security;
+alter table public.profiles enable row level security;
 alter table public.restaurants enable row level security;
 alter table public.subscriptions enable row level security;
 alter table public.categories enable row level security;
@@ -253,11 +323,33 @@ create policy "Public can read restaurants"
 on public.restaurants for select
 using (true);
 
+drop policy if exists "Users can read own profile" on public.profiles;
+create policy "Users can read own profile"
+on public.profiles for select
+to authenticated
+using (auth.uid() = id or public.is_super_admin());
+
+drop policy if exists "Users can update own profile email" on public.profiles;
+create policy "Users can update own profile email"
+on public.profiles for update
+to authenticated
+using (auth.uid() = id or public.is_super_admin())
+with check (
+  (auth.uid() = id and role = 'user')
+  or public.is_super_admin()
+);
+
+drop policy if exists "Super admin can insert profiles" on public.profiles;
+create policy "Super admin can insert profiles"
+on public.profiles for insert
+to authenticated
+with check (public.is_super_admin());
+
 drop policy if exists "Users can read own subscriptions" on public.subscriptions;
 create policy "Users can read own subscriptions"
 on public.subscriptions for select
 to authenticated
-using (auth.uid() = user_id);
+using (auth.uid() = user_id or public.is_super_admin());
 
 drop policy if exists "Public can read subscriptions for menu availability" on public.subscriptions;
 create policy "Public can read subscriptions for menu availability"
@@ -276,6 +368,26 @@ on public.subscriptions for update
 to authenticated
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
+
+drop policy if exists "Super admin can update subscriptions" on public.subscriptions;
+create policy "Super admin can update subscriptions"
+on public.subscriptions for update
+to authenticated
+using (public.is_super_admin())
+with check (public.is_super_admin());
+
+drop policy if exists "Super admin can read all restaurants" on public.restaurants;
+create policy "Super admin can read all restaurants"
+on public.restaurants for select
+to authenticated
+using (public.is_super_admin());
+
+drop policy if exists "Super admin can update restaurants" on public.restaurants;
+create policy "Super admin can update restaurants"
+on public.restaurants for update
+to authenticated
+using (public.is_super_admin())
+with check (public.is_super_admin());
 
 drop policy if exists "Public can read active categories" on public.categories;
 create policy "Public can read active categories"

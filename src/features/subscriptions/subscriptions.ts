@@ -13,6 +13,7 @@ export type Subscription = {
   branch_limit: number;
   amount: number;
   status: SubscriptionStatus;
+  provider: "mercadopago" | "manual" | null;
   trial_start: string;
   trial_end: string;
   current_period_start: string;
@@ -27,6 +28,7 @@ const TRIAL_PLAN = {
   branch_limit: 1,
   amount: 30000,
   status: "trialing" as const,
+  provider: "mercadopago" as const,
 };
 
 function addDays(date: Date, days: number) {
@@ -131,6 +133,7 @@ export async function activatePlan(userId: string, plan: Plan) {
       branch_limit: plan.branchLimit,
       amount: plan.amount,
       status: "active",
+      provider: "mercadopago",
       cancelled_at: null,
       current_period_start: now.toISOString(),
       current_period_end: nextPeriodEnd.toISOString(),

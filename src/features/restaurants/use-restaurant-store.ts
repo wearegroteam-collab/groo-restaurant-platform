@@ -25,6 +25,7 @@ type RestaurantRow = {
   whatsapp_url: string;
   google_maps_url: string;
   theme: "light" | "dark" | null;
+  is_active: boolean | null;
   user_id: string | null;
 };
 
@@ -164,7 +165,9 @@ function toRestaurant(
     googleMapsUrl: restaurant.google_maps_url,
     whatsappUrl: restaurant.whatsapp_url,
     theme: restaurant.theme ?? "light",
-    canShowPublicMenu: isSubscriptionValid(ownerSubscription ?? null),
+    isActive: restaurant.is_active ?? true,
+    canShowPublicMenu:
+      (restaurant.is_active ?? true) && isSubscriptionValid(ownerSubscription ?? null),
     addonGroups: restaurantAddonGroups,
     banners: banners
       .filter((banner) => banner.restaurant_id === restaurant.id)
@@ -189,6 +192,7 @@ function toRestaurantInsert(restaurant: Restaurant) {
     whatsapp_url: restaurant.whatsappUrl,
     google_maps_url: restaurant.googleMapsUrl,
     theme: restaurant.theme,
+    is_active: restaurant.isActive ?? true,
   };
 }
 
@@ -202,6 +206,7 @@ function toRestaurantUpdate(restaurant: Restaurant) {
     whatsapp_url: restaurant.whatsappUrl,
     google_maps_url: restaurant.googleMapsUrl,
     theme: restaurant.theme,
+    is_active: restaurant.isActive ?? true,
   };
 }
 
