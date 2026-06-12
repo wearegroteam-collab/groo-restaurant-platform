@@ -19,10 +19,12 @@ import { useState } from "react";
 
 type PublicMenuExperienceProps = {
   initialRestaurants: Restaurant[];
+  dataSource?: "local" | "supabase";
   restaurantSlug: string;
 };
 
 export function PublicMenuExperience({
+  dataSource = "supabase",
   initialRestaurants,
   restaurantSlug,
 }: PublicMenuExperienceProps) {
@@ -33,7 +35,7 @@ export function PublicMenuExperience({
     error,
     isLoading,
     restaurant: currentRestaurant,
-  } = useRestaurantBySlug(initialRestaurants, restaurantSlug);
+  } = useRestaurantBySlug(initialRestaurants, restaurantSlug, { source: dataSource });
 
   if (isLoading) {
     return (

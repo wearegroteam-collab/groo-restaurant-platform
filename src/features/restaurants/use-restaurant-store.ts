@@ -595,13 +595,26 @@ export function useRestaurantsStore() {
   };
 }
 
-export function useRestaurantBySlug(_initialRestaurants: Restaurant[], slug: string) {
-  void _initialRestaurants;
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export function useRestaurantBySlug(
+  initialRestaurants: Restaurant[],
+  slug: string,
+  options?: { source?: "local" | "supabase" },
+) {
+  const isLocalSource = options?.source === "local";
+  const [restaurants, setRestaurants] = useState<Restaurant[]>(
+    isLocalSource ? initialRestaurants : [],
+  );
+  const [isLoading, setIsLoading] = useState(!isLocalSource);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isLocalSource) {
+      setRestaurants(initialRestaurants);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
     async function loadRestaurants() {
       setIsLoading(true);
       setError(null);
@@ -618,7 +631,7 @@ export function useRestaurantBySlug(_initialRestaurants: Restaurant[], slug: str
     }
 
     loadRestaurants();
-  }, []);
+  }, [initialRestaurants, isLocalSource]);
 
   return {
     error,

@@ -145,7 +145,7 @@ export default function HomePage() {
                 </Link>
               </Button>
               <Button asChild variant="secondary">
-                <Link href="/hangar/menu">Ver ejemplo</Link>
+                <Link href="/demo/menu">Ver ejemplo</Link>
               </Button>
             </div>
             <div className="grid gap-2 text-sm font-semibold text-white/80 sm:grid-cols-3">
