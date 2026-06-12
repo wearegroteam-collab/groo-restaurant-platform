@@ -230,7 +230,7 @@ export function CartPanel({
     <div className="fixed inset-0 z-50 flex items-end bg-ink/55 p-0 sm:items-center sm:justify-center sm:p-4">
       <section
         className={cn(
-          "max-h-[88vh] w-full overflow-hidden rounded-t-2xl border shadow-soft sm:max-w-lg sm:rounded-2xl",
+          "flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-t-2xl border shadow-soft sm:max-h-[88dvh] sm:max-w-lg sm:rounded-2xl",
           isDark ? "border-white/10 bg-[#111a15] text-white" : "border-ink/10 bg-white text-ink",
         )}
       >
@@ -259,7 +259,7 @@ export function CartPanel({
           </button>
         </div>
 
-        <div className="max-h-[60vh] overflow-y-auto px-4 py-3">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3">
           {lines.length ? (
             <div className="grid gap-3">
               {lines.map((line) => {
@@ -462,7 +462,7 @@ export function CartPanel({
 
         <div
           className={cn(
-            "border-t px-4 py-4",
+            "shrink-0 border-t px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4",
             isDark ? "border-white/10 bg-[#0c120f]" : "border-ink/10 bg-white",
           )}
         >
