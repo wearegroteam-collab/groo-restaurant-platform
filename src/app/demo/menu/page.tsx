@@ -1,5 +1,4 @@
-import { PublicMenuExperience } from "@/components/menu/public-menu-experience";
-import { demoRestaurants } from "@/features/restaurants/demo-data";
+import { DemoMenuExperience } from "@/components/menu/demo-menu-experience";
 
 export const metadata = {
   title: "Demo Restaurante | Menu",
@@ -7,11 +6,5 @@ export const metadata = {
 };
 
 export default function DemoMenuPage() {
-  return (
-    <PublicMenuExperience
-      dataSource="local"
-      initialRestaurants={demoRestaurants}
-      restaurantSlug="demo"
-    />
-  );
+  return <DemoMenuExperience />;
 }

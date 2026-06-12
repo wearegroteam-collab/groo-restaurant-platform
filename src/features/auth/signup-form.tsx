@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Route } from "next";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signup } from "@/features/auth/use-auth";
@@ -12,7 +10,6 @@ const inputClass =
   "min-h-11 w-full rounded-md border border-ink/15 bg-white px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
 
 export function SignupForm() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -38,8 +35,7 @@ export function SignupForm() {
       return;
     }
 
-    setMessage("Cuenta creada. Si tu proyecto requiere confirmacion por email, revisa tu correo.");
-    router.replace("/admin" as Route);
+    setMessage("Cuenta creada. Revisa tu correo para confirmar tu cuenta antes de iniciar sesion.");
   }
 
   return (

@@ -1199,7 +1199,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
               ))}
             </select>
             <Button asChild variant="outline">
-              <Link href={`/${restaurant.slug}/menu`}>
+              <Link href={`/${restaurant.slug}/menu`} rel="noopener noreferrer" target="_blank">
                 Ver menu <ExternalLink className="h-4 w-4" />
               </Link>
             </Button>
@@ -1317,7 +1317,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button asChild>
-                  <Link href={`/${restaurant.slug}/menu`}>
+                  <Link href={`/${restaurant.slug}/menu`} rel="noopener noreferrer" target="_blank">
                     Ver menu <ExternalLink className="h-4 w-4" />
                   </Link>
                 </Button>

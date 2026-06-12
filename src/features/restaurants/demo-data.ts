@@ -1,41 +1,11 @@
 import type { Restaurant } from "@/types/menu";
 
-function svgDataUri(svg: string) {
-  return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
-}
-
-const logo = svgDataUri(`
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <rect width="256" height="256" rx="56" fill="#172018"/>
-  <circle cx="128" cy="108" r="54" fill="#84cc16"/>
-  <path d="M72 168h112v18H72z" fill="#ecfccb"/>
-  <path d="M90 108c10-25 66-25 76 0 5 14-4 34-38 34s-43-20-38-34z" fill="#172018"/>
-</svg>`);
-
-const bannerOne = svgDataUri(`
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600">
-  <defs>
-    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
-      <stop stop-color="#172018"/>
-      <stop offset="1" stop-color="#365314"/>
-    </linearGradient>
-  </defs>
-  <rect width="1200" height="600" fill="url(#g)"/>
-  <circle cx="880" cy="160" r="210" fill="#84cc16" opacity=".42"/>
-  <circle cx="980" cy="360" r="120" fill="#ecfccb" opacity=".28"/>
-  <rect x="90" y="120" width="390" height="250" rx="42" fill="#f8faf3" opacity=".12"/>
-  <text x="90" y="455" fill="#ecfccb" font-family="Arial" font-size="58" font-weight="800">Combos listos para pedir</text>
-</svg>`);
-
-const bannerTwo = svgDataUri(`
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600">
-  <rect width="1200" height="600" fill="#0c120f"/>
-  <rect x="90" y="90" width="1020" height="420" rx="52" fill="#111a15"/>
-  <circle cx="250" cy="300" r="120" fill="#84cc16"/>
-  <circle cx="620" cy="300" r="120" fill="#f8faf3" opacity=".22"/>
-  <circle cx="990" cy="300" r="120" fill="#65a30d" opacity=".82"/>
-  <text x="90" y="560" fill="#ecfccb" font-family="Arial" font-size="52" font-weight="800">Promociones destacadas</text>
-</svg>`);
+const logo =
+  "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=256&q=80";
+const bannerOne =
+  "https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=1400&q=85";
+const bannerTwo =
+  "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=1400&q=85";
 
 const addonGroups = [
   {
@@ -95,20 +65,20 @@ export const demoRestaurants: Restaurant[] = [
     logoUrl: logo,
     googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=restaurante+demo",
     whatsappUrl: "3001234567",
-    theme: "dark",
+    theme: "light",
     isActive: true,
     canShowPublicMenu: true,
     addonGroups,
     banners: [
       {
         id: "demo_banner_one",
-        title: "Pide sin llamadas ni confusiones",
-        subtitle: "Tus clientes agregan productos, extras y envian el pedido por WhatsApp.",
+        title: "Combo del dia listo para pedir",
+        subtitle: "Hamburguesa clasica, papas loaded y limonada natural.",
         imageUrl: bannerOne,
       },
       {
         id: "demo_banner_two",
-        title: "Destaca tus promociones",
+        title: "Pizzas y promociones visibles",
         subtitle: "Banners, categorias y productos listos para vender desde el celular.",
         imageUrl: bannerTwo,
       },
@@ -116,29 +86,43 @@ export const demoRestaurants: Restaurant[] = [
     menu: [
       {
         id: "demo_cat_burgers",
-        name: "Hamburguesas",
+        name: "Combos",
         description: "Favoritas para pedir por WhatsApp.",
         items: [
           {
+            id: "demo_item_combo",
+            name: "Combo del dia",
+            description: "Hamburguesa clasica, papas loaded y limonada natural.",
+            price: { amount: 42000, currency: "COP" },
+            imageUrl:
+              "https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?auto=format&fit=crop&w=800&q=85",
+            isAvailable: true,
+            addonGroupIds: ["demo_addon_salsas", "demo_addon_extras"],
+            addonGroups,
+            tags: ["Promo"],
+          },
+          {
             id: "demo_item_clasica",
-            name: "Hamburguesa Clasica",
+            name: "Hamburguesa clasica",
             description: "Carne artesanal, queso, vegetales frescos y salsa de la casa.",
             price: { amount: 25000, currency: "COP" },
-            imageUrl: "",
+            imageUrl:
+              "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=85",
             isAvailable: true,
             addonGroupIds: ["demo_addon_salsas", "demo_addon_extras"],
             addonGroups,
             tags: ["Mas vendida"],
           },
           {
-            id: "demo_item_doble",
-            name: "Hamburguesa Doble",
-            description: "Doble carne, doble queso, cebolla caramelizada y papas.",
-            price: { amount: 34000, currency: "COP" },
-            imageUrl: "",
+            id: "demo_item_papas_loaded",
+            name: "Papas loaded",
+            description: "Papas crocantes con queso, tocineta, cebollin y salsa de la casa.",
+            price: { amount: 22000, currency: "COP" },
+            imageUrl:
+              "https://images.unsplash.com/photo-1630384060421-cb20d0e0649d?auto=format&fit=crop&w=800&q=85",
             isAvailable: true,
-            addonGroupIds: ["demo_addon_extras"],
-            addonGroups: addonGroups.filter((group) => group.id === "demo_addon_extras"),
+            addonGroupIds: ["demo_addon_salsas"],
+            addonGroups: addonGroups.filter((group) => group.id === "demo_addon_salsas"),
             tags: ["Recomendada"],
           },
         ],
@@ -150,10 +134,11 @@ export const demoRestaurants: Restaurant[] = [
         items: [
           {
             id: "demo_item_pepperoni",
-            name: "Pizza Pepperoni",
-            description: "Masa delgada, queso mozzarella y pepperoni crocante.",
+            name: "Pizza personal",
+            description: "Masa delgada, queso mozzarella, pepperoni y oregano.",
             price: { amount: 28000, currency: "COP" },
-            imageUrl: "",
+            imageUrl:
+              "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=85",
             isAvailable: true,
             addonGroupIds: ["demo_addon_extras"],
             addonGroups: addonGroups.filter((group) => group.id === "demo_addon_extras"),
@@ -183,10 +168,11 @@ export const demoRestaurants: Restaurant[] = [
           },
           {
             id: "demo_item_limonada",
-            name: "Limonada Natural",
+            name: "Limonada natural",
             description: "Preparada al momento.",
             price: { amount: 8000, currency: "COP" },
-            imageUrl: "",
+            imageUrl:
+              "https://images.unsplash.com/photo-1621263764928-df1444c5e859?auto=format&fit=crop&w=800&q=85",
             isAvailable: true,
           },
         ],

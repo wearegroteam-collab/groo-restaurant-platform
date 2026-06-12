@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import { getAppUrl } from "@/lib/config/app-url";
 import { ensureTrialSubscription } from "@/features/subscriptions/subscriptions";
 
 type AuthResult =
@@ -36,6 +37,9 @@ export async function signup(email: string, password: string): Promise<AuthResul
   const { data, error } = await supabase.auth.signUp({
     email: email.trim().toLowerCase(),
     password,
+    options: {
+      emailRedirectTo: `${getAppUrl()}/auth/callback?next=/auth/confirmed`,
+    },
   });
 
   if (error) {

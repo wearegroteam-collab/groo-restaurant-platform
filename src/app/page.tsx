@@ -147,6 +147,9 @@ export default function HomePage() {
               <Button asChild variant="secondary">
                 <Link href="/demo/menu">Ver ejemplo</Link>
               </Button>
+              <Button asChild variant="outline">
+                <Link href="/login">Ingresar</Link>
+              </Button>
             </div>
             <div className="grid gap-2 text-sm font-semibold text-white/80 sm:grid-cols-3">
               {proofPoints.map((point) => (
