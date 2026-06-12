@@ -4,11 +4,15 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/use-auth";
 
-export function AuthAwareAccessButton() {
+type AuthAwareAccessButtonProps = {
+  className?: string;
+};
+
+export function AuthAwareAccessButton({ className }: AuthAwareAccessButtonProps) {
   const { isAuthenticated, isLoading } = useAuth();
 
   return (
-    <Button asChild variant="outline">
+    <Button asChild className={className} variant="outline">
       <Link href={isAuthenticated ? "/admin" : "/login"}>
         {isLoading ? "Ingresar" : isAuthenticated ? "Ir al panel" : "Iniciar sesion"}
       </Link>

@@ -125,7 +125,27 @@ export default function HomePage() {
     <main className="bg-[#f8faf3] text-ink">
       <section className="relative overflow-hidden bg-ink text-white">
         <div className="absolute inset-x-0 top-0 h-1 bg-brand-500" />
-        <Container className="relative grid min-h-screen content-center gap-10 py-16 lg:grid-cols-[1fr_0.88fr] lg:items-center">
+        <header className="relative z-20 border-b border-white/10 bg-ink/92">
+          <Container className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <Link className="text-xl font-black tracking-tight text-white" href="/">
+              Menus Groo
+            </Link>
+            <nav className="grid gap-2 sm:flex sm:items-center">
+              <Button
+                asChild
+                className="border-white/15 text-white hover:bg-white/10"
+                variant="outline"
+              >
+                <Link href="/demo/menu">Ver demo</Link>
+              </Button>
+              <AuthAwareAccessButton className="border-white/15 text-white hover:bg-white/10" />
+              <Button asChild>
+                <Link href="/signup">Probar gratis</Link>
+              </Button>
+            </nav>
+          </Container>
+        </header>
+        <Container className="relative grid min-h-[calc(100vh-5rem)] content-center gap-10 py-16 lg:grid-cols-[1fr_0.88fr] lg:items-center">
           <div className="space-y-7">
             <p className="inline-flex rounded-full border border-brand-100/25 bg-white/8 px-3 py-1 text-sm font-semibold text-brand-100">
               Menus digitales que convierten chats en pedidos
