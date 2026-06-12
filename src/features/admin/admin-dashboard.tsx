@@ -16,7 +16,15 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import type { AddonGroup, AddonOption, MenuBanner, MenuCategory, MenuItem, Restaurant } from "@/types/menu";
+import type {
+  AddonGroup,
+  AddonOption,
+  MenuBanner,
+  MenuCategory,
+  MenuItem,
+  Restaurant,
+  RestaurantPopup,
+} from "@/types/menu";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/layout/container";
 import { PublicMenuShare } from "@/components/admin/public-menu-share";
@@ -59,6 +67,7 @@ type ProductForm = {
   imageUrl: string;
   tags: string;
   isAvailable: boolean;
+  isFeatured: boolean;
   addonGroupIds: string[];
 };
 
@@ -84,6 +93,16 @@ type BannerForm = {
   title: string;
   subtitle: string;
   imageUrl: string;
+};
+
+type PopupForm = {
+  id?: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  buttonText: string;
+  buttonUrl: string;
+  isActive: boolean;
 };
 
 type Toast = {
@@ -125,6 +144,7 @@ const emptyProductForm: ProductForm = {
   imageUrl: "",
   tags: "",
   isAvailable: true,
+  isFeatured: false,
   addonGroupIds: [],
 };
 
@@ -147,6 +167,15 @@ const emptyBannerForm: BannerForm = {
   title: "",
   subtitle: "",
   imageUrl: "",
+};
+
+const emptyPopupForm: PopupForm = {
+  title: "",
+  description: "",
+  imageUrl: "",
+  buttonText: "",
+  buttonUrl: "",
+  isActive: false,
 };
 
 const emptyRestaurant: Restaurant = {
@@ -245,6 +274,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
   const [addonGroupForm, setAddonGroupForm] = useState(emptyAddonGroupForm);
   const [addonOptionForm, setAddonOptionForm] = useState(emptyAddonOptionForm);
   const [bannerForm, setBannerForm] = useState(emptyBannerForm);
+  const [popupForm, setPopupForm] = useState<PopupForm>(emptyPopupForm);
   const [restaurantErrors, setRestaurantErrors] = useState<FormErrors<keyof RestaurantForm>>({});
   const [categoryErrors, setCategoryErrors] = useState<FormErrors<"name">>({});
   const [productErrors, setProductErrors] = useState<FormErrors<"categoryId" | "name" | "price">>(
@@ -432,6 +462,10 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
       }));
     }
   }, [productForm.categoryId, restaurant.menu]);
+
+  useEffect(() => {
+    setPopupForm(restaurant.popup ? toPopupForm(restaurant.popup) : emptyPopupForm);
+  }, [restaurant.id, restaurant.popup]);
 
   function saveRestaurantInfo() {
     const errors: FormErrors<keyof RestaurantForm> = {};
@@ -688,6 +722,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
       },
       imageUrl: productForm.imageUrl.trim(),
       isAvailable: productForm.isAvailable,
+      isFeatured: productForm.isFeatured,
       addonGroupIds: productForm.addonGroupIds,
       addonGroups: restaurant.addonGroups.filter((group) => productForm.addonGroupIds.includes(group.id)),
       tags: productForm.tags
@@ -740,6 +775,7 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
       price: String(item.price.amount),
       imageUrl: item.imageUrl,
       isAvailable: item.isAvailable,
+      isFeatured: item.isFeatured ?? false,
       addonGroupIds: item.addonGroupIds ?? [],
       tags: item.tags?.join(", ") ?? "",
     });
@@ -1157,6 +1193,80 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
       showToast("Orden de banners actualizado.", "success");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "No se pudo ordenar el banner.", "error");
+    }
+  }
+
+  function savePopup() {
+    if (!popupForm.title.trim()) {
+      showToast("El titulo del popup es obligatorio.", "error");
+      return;
+    }
+
+    const nextPopup: RestaurantPopup = {
+      id: popupForm.id ?? createId("popup"),
+      title: popupForm.title.trim(),
+      description: popupForm.description.trim(),
+      imageUrl: popupForm.imageUrl.trim(),
+      buttonText: popupForm.buttonText.trim(),
+      buttonUrl: popupForm.buttonUrl.trim(),
+      isActive: popupForm.isActive,
+    };
+
+    withSaving(
+      "popup",
+      () => {
+        const promise = updateRestaurant((currentRestaurant) => ({
+          ...currentRestaurant,
+          popup: nextPopup,
+        }));
+        setPopupForm(toPopupForm(nextPopup));
+        return promise;
+      },
+      popupForm.id ? "Popup actualizado." : "Popup creado.",
+    );
+  }
+
+  async function deletePopup() {
+    if (!restaurant.popup || !window.confirm("Eliminar el popup promocional?")) {
+      return;
+    }
+
+    try {
+      await updateRestaurant((currentRestaurant) => ({
+        ...currentRestaurant,
+        popup: null,
+      }));
+      setPopupForm(emptyPopupForm);
+      showToast("Popup eliminado.", "success");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "No se pudo eliminar el popup.", "error");
+    }
+  }
+
+  async function selectPopupImage(file: File | undefined) {
+    if (!file) {
+      return;
+    }
+
+    if (!canManageRestaurant) {
+      showToast("Activa un plan para subir imagenes.", "error");
+      setActiveSection("subscription");
+      return;
+    }
+
+    setSavingTarget("popup-image");
+
+    try {
+      const publicUrl = await uploadMenuImage(file, `${restaurant.slug || "restaurant"}/popups`);
+      setPopupForm((currentForm) => ({
+        ...currentForm,
+        imageUrl: publicUrl,
+      }));
+      showToast("Imagen de popup subida.", "success");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "No se pudo subir el popup.", "error");
+    } finally {
+      setSavingTarget(null);
     }
   }
 
@@ -1651,6 +1761,16 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
                   />
                   Disponible
                 </label>
+                <label className="flex items-center gap-3 self-end rounded-md border border-ink/10 bg-white px-3 py-3 text-sm font-semibold">
+                  <input
+                    checked={productForm.isFeatured}
+                    onChange={(event) =>
+                      setProductForm({ ...productForm, isFeatured: event.target.checked })
+                    }
+                    type="checkbox"
+                  />
+                  Mostrar en destacados
+                </label>
                 <Field label="Descripcion">
                   <textarea
                     className={textareaClass}
@@ -1909,6 +2029,97 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
             {activeSection === "banners" ? (
             <Panel title={bannerForm.id ? "Editar banner" : "Gestion de banners"}>
               <div className="grid gap-4">
+                <div className="grid gap-4 rounded-lg border border-ink/10 bg-brand-50/60 p-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="font-bold">Popup promocional</h3>
+                      <p className="text-sm font-semibold text-ink/60">
+                        {restaurant.popup?.isActive ? "Popup activo" : "Sin popup activo"}
+                      </p>
+                    </div>
+                    {restaurant.popup ? (
+                      <Button onClick={deletePopup} variant="outline">
+                        <Trash2 className="h-4 w-4" /> Eliminar popup
+                      </Button>
+                    ) : null}
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="Titulo popup" required>
+                      <input
+                        className={inputClass}
+                        value={popupForm.title}
+                        onChange={(event) =>
+                          setPopupForm({ ...popupForm, title: event.target.value })
+                        }
+                      />
+                    </Field>
+                    <Field label="Imagen popup URL">
+                      <input
+                        className={inputClass}
+                        value={popupForm.imageUrl}
+                        onChange={(event) =>
+                          setPopupForm({ ...popupForm, imageUrl: event.target.value })
+                        }
+                      />
+                      <label className="flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-ink/20 bg-white px-3 py-2 text-sm transition hover:border-brand-500 hover:bg-brand-50">
+                        <ImagePlus className="h-4 w-4 text-brand-600" />
+                        {savingTarget === "popup-image" ? "Subiendo popup..." : "Subir imagen popup"}
+                        <input
+                          accept="image/*"
+                          className="sr-only"
+                          onChange={(event) => selectPopupImage(event.target.files?.[0])}
+                          type="file"
+                        />
+                      </label>
+                    </Field>
+                    <Field label="Descripcion popup">
+                      <textarea
+                        className={textareaClass}
+                        value={popupForm.description}
+                        onChange={(event) =>
+                          setPopupForm({ ...popupForm, description: event.target.value })
+                        }
+                      />
+                    </Field>
+                    <div className="grid gap-4">
+                      <Field label="Texto del boton">
+                        <input
+                          className={inputClass}
+                          value={popupForm.buttonText}
+                          onChange={(event) =>
+                            setPopupForm({ ...popupForm, buttonText: event.target.value })
+                          }
+                        />
+                      </Field>
+                      <Field label="URL del boton">
+                        <input
+                          className={inputClass}
+                          value={popupForm.buttonUrl}
+                          onChange={(event) =>
+                            setPopupForm({ ...popupForm, buttonUrl: event.target.value })
+                          }
+                        />
+                      </Field>
+                    </div>
+                    <label className="flex items-center gap-3 rounded-md border border-ink/10 bg-white px-3 py-3 text-sm font-semibold">
+                      <input
+                        checked={popupForm.isActive}
+                        onChange={(event) =>
+                          setPopupForm({ ...popupForm, isActive: event.target.checked })
+                        }
+                        type="checkbox"
+                      />
+                      Activo
+                    </label>
+                    <div className="flex items-end">
+                      <Button disabled={savingTarget === "popup"} onClick={savePopup}>
+                        <Save className="h-4 w-4" />
+                        {savingTarget === "popup" ? "Guardando..." : "Guardar popup"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid gap-4 md:grid-cols-2">
                   <Field error={bannerErrors.title} label="Titulo" required>
                     <input
@@ -2250,6 +2461,18 @@ function useStateFromRestaurant(restaurant: Restaurant) {
   ]);
 
   return [form, setForm] as const;
+}
+
+function toPopupForm(popup: RestaurantPopup): PopupForm {
+  return {
+    id: popup.id,
+    title: popup.title,
+    description: popup.description,
+    imageUrl: popup.imageUrl,
+    buttonText: popup.buttonText,
+    buttonUrl: popup.buttonUrl,
+    isActive: popup.isActive,
+  };
 }
 
 function Metric({ label, value }: { label: string; value: number }) {

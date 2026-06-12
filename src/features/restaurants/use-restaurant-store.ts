@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
-import type { AddonGroup, MenuBanner, MenuCategory, MenuItem, Restaurant } from "@/types/menu";
+import type { AddonGroup, MenuBanner, MenuCategory, MenuItem, Restaurant, RestaurantPopup } from "@/types/menu";
 import { createClient } from "@/lib/supabase/client";
 import {
   ensureTrialSubscription,
@@ -48,6 +48,7 @@ type ProductRow = {
   image_url: string | null;
   tags: string[];
   is_available: boolean;
+  is_featured: boolean | null;
   sort_order: number;
 };
 
@@ -84,6 +85,17 @@ type ProductAddonGroupRow = {
   addon_group_id: string;
 };
 
+type RestaurantPopupRow = {
+  id: string;
+  restaurant_id: string;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+  button_text: string | null;
+  button_url: string | null;
+  is_active: boolean;
+};
+
 type SubscriptionRow = Subscription;
 
 function toRestaurant(
@@ -94,6 +106,7 @@ function toRestaurant(
   addonGroups: AddonGroupRow[],
   addonOptions: AddonOptionRow[],
   productAddonGroups: ProductAddonGroupRow[],
+  popups: RestaurantPopupRow[],
   subscriptions: SubscriptionRow[],
 ): Restaurant {
   const ownerSubscription = subscriptions.find(
@@ -147,6 +160,7 @@ function toRestaurant(
             },
             imageUrl: product.image_url ?? "",
             isAvailable: product.is_available,
+            isFeatured: product.is_featured ?? false,
             addonGroupIds,
             addonGroups: restaurantAddonGroups.filter((group) => addonGroupIds.includes(group.id)),
             tags: product.tags,
@@ -178,7 +192,24 @@ function toRestaurant(
         subtitle: banner.subtitle ?? "",
         imageUrl: banner.image_url,
       })),
+    popup: toRestaurantPopup(popups.find((popup) => popup.restaurant_id === restaurant.id) ?? null),
     menu,
+  };
+}
+
+function toRestaurantPopup(popup: RestaurantPopupRow | null): RestaurantPopup | null {
+  if (!popup) {
+    return null;
+  }
+
+  return {
+    id: popup.id,
+    title: popup.title,
+    description: popup.description ?? "",
+    imageUrl: popup.image_url ?? "",
+    buttonText: popup.button_text ?? "",
+    buttonUrl: popup.button_url ?? "",
+    isActive: popup.is_active,
   };
 }
 
@@ -233,6 +264,7 @@ async function fetchRestaurantsFromSupabase(userId?: string) {
     addonGroupsResult,
     addonOptionsResult,
     productAddonGroupsResult,
+    popupsResult,
     subscriptionsResult,
   ] = await Promise.all([
     restaurantsQuery,
@@ -250,6 +282,7 @@ async function fetchRestaurantsFromSupabase(userId?: string) {
     supabase.from("addon_groups").select("*").order("name", { ascending: true }),
     supabase.from("addon_options").select("*").order("sort_order", { ascending: true }),
     supabase.from("product_addon_groups").select("*"),
+    supabase.from("restaurant_popups").select("*").order("is_active", { ascending: false }),
     supabase.from("subscriptions").select("*"),
   ]);
 
@@ -260,6 +293,7 @@ async function fetchRestaurantsFromSupabase(userId?: string) {
   normalizeSupabaseError(addonGroupsResult.error);
   normalizeSupabaseError(addonOptionsResult.error);
   normalizeSupabaseError(productAddonGroupsResult.error);
+  normalizeSupabaseError(popupsResult.error);
   normalizeSupabaseError(subscriptionsResult.error);
 
   const restaurants = (restaurantsResult.data ?? []) as RestaurantRow[];
@@ -269,6 +303,7 @@ async function fetchRestaurantsFromSupabase(userId?: string) {
   const addonGroups = (addonGroupsResult.data ?? []) as AddonGroupRow[];
   const addonOptions = (addonOptionsResult.data ?? []) as AddonOptionRow[];
   const productAddonGroups = (productAddonGroupsResult.data ?? []) as ProductAddonGroupRow[];
+  const popups = (popupsResult.data ?? []) as RestaurantPopupRow[];
   const subscriptions = (subscriptionsResult.data ?? []) as SubscriptionRow[];
 
   return restaurants.map((restaurant) =>
@@ -280,6 +315,7 @@ async function fetchRestaurantsFromSupabase(userId?: string) {
       addonGroups,
       addonOptions,
       productAddonGroups,
+      popups,
       subscriptions,
     ),
   );
@@ -315,6 +351,7 @@ async function replaceRestaurantGraph(restaurant: Restaurant, userId?: string) {
     supabase.from("addon_options").delete().eq("restaurant_id", restaurantId),
     supabase.from("addon_groups").delete().eq("restaurant_id", restaurantId),
     supabase.from("banners").delete().eq("restaurant_id", restaurantId),
+    supabase.from("restaurant_popups").delete().eq("restaurant_id", restaurantId),
     supabase.from("products").delete().eq("restaurant_id", restaurantId),
     supabase.from("categories").delete().eq("restaurant_id", restaurantId),
   ]);
@@ -372,6 +409,19 @@ async function replaceRestaurantGraph(restaurant: Restaurant, userId?: string) {
     normalizeSupabaseError(bannersResult.error);
   }
 
+  if (restaurant.popup) {
+    const popupResult = await supabase.from("restaurant_popups").insert({
+      restaurant_id: restaurantId,
+      title: restaurant.popup.title,
+      description: restaurant.popup.description || null,
+      image_url: restaurant.popup.imageUrl || null,
+      button_text: restaurant.popup.buttonText || null,
+      button_url: restaurant.popup.buttonUrl || null,
+      is_active: restaurant.popup.isActive,
+    });
+    normalizeSupabaseError(popupResult.error);
+  }
+
   for (const [categoryIndex, category] of restaurant.menu.entries()) {
     const categoryResult = await supabase
       .from("categories")
@@ -404,6 +454,7 @@ async function replaceRestaurantGraph(restaurant: Restaurant, userId?: string) {
           image_url: item.imageUrl.trim() || null,
           tags: item.tags ?? [],
           is_available: item.isAvailable,
+          is_featured: item.isFeatured ?? false,
           sort_order: productIndex,
         })
         .select("id")

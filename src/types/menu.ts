@@ -27,6 +27,7 @@ export type MenuItem = {
   price: Money;
   imageUrl: string;
   isAvailable: boolean;
+  isFeatured?: boolean;
   addonGroupIds?: string[];
   addonGroups?: AddonGroup[];
   tags?: string[];
@@ -40,6 +41,16 @@ export type MenuBanner = {
 };
 
 export type MenuTheme = "light" | "dark";
+
+export type RestaurantPopup = {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  buttonText: string;
+  buttonUrl: string;
+  isActive: boolean;
+};
 
 export type MenuCategory = {
   id: string;
@@ -61,6 +72,7 @@ export type Restaurant = {
   theme: MenuTheme;
   isActive?: boolean;
   canShowPublicMenu?: boolean;
+  popup?: RestaurantPopup | null;
   banners: MenuBanner[];
   addonGroups: AddonGroup[];
   menu: MenuCategory[];

@@ -18,9 +18,7 @@ export function FeaturedPromotions({ restaurant, theme = "light" }: FeaturedProm
         categoryName: category.name,
       })),
     )
-    .filter((item) => item.isAvailable)
-    .sort((first, second) => Number(Boolean(second.tags?.length)) - Number(Boolean(first.tags?.length)))
-    .slice(0, 3);
+    .filter((item) => item.isAvailable && item.isFeatured);
 
   if (!promotions.length) {
     return null;
@@ -31,9 +29,6 @@ export function FeaturedPromotions({ restaurant, theme = "light" }: FeaturedProm
       <Container className="space-y-3">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-600">
-              Promociones
-            </p>
             <h2 className={cn("text-xl font-bold", isDark && "text-white")}>Destacados de hoy</h2>
           </div>
         </div>

@@ -66,9 +66,6 @@ export function BannerSlider({ banners }: BannerSliderProps) {
             <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/45 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-6xl px-4 pb-8 sm:px-6 lg:px-8">
               <div className="max-w-xl space-y-2 text-white">
-                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-brand-100">
-                  Menu digital
-                </p>
                 <h2 className="text-3xl font-bold leading-tight sm:text-5xl">{banner.title}</h2>
                 <p className="text-sm leading-6 text-white/78 sm:text-base">{banner.subtitle}</p>
               </div>

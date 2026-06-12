@@ -121,10 +121,14 @@ create table if not exists public.products (
   image_url text,
   tags text[] not null default '{}',
   is_available boolean not null default true,
+  is_featured boolean not null default false,
   sort_order integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.products
+add column if not exists is_featured boolean not null default false;
 
 create table if not exists public.banners (
   id uuid primary key default gen_random_uuid(),
@@ -137,6 +141,23 @@ create table if not exists public.banners (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create table if not exists public.restaurant_popups (
+  id uuid primary key default gen_random_uuid(),
+  restaurant_id uuid not null references public.restaurants(id) on delete cascade,
+  title text not null,
+  description text,
+  image_url text,
+  button_text text,
+  button_url text,
+  is_active boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists restaurant_popups_one_active_idx
+  on public.restaurant_popups(restaurant_id)
+  where is_active = true;
 
 create table if not exists public.addon_groups (
   id uuid primary key default gen_random_uuid(),
@@ -224,6 +245,11 @@ for each row execute function public.set_updated_at();
 drop trigger if exists set_banners_updated_at on public.banners;
 create trigger set_banners_updated_at
 before update on public.banners
+for each row execute function public.set_updated_at();
+
+drop trigger if exists set_restaurant_popups_updated_at on public.restaurant_popups;
+create trigger set_restaurant_popups_updated_at
+before update on public.restaurant_popups
 for each row execute function public.set_updated_at();
 
 drop trigger if exists set_addon_groups_updated_at on public.addon_groups;
@@ -314,6 +340,7 @@ alter table public.subscriptions enable row level security;
 alter table public.categories enable row level security;
 alter table public.products enable row level security;
 alter table public.banners enable row level security;
+alter table public.restaurant_popups enable row level security;
 alter table public.addon_groups enable row level security;
 alter table public.addon_options enable row level security;
 alter table public.product_addon_groups enable row level security;
@@ -404,6 +431,23 @@ create policy "Public can read active banners"
 on public.banners for select
 using (is_active = true);
 
+drop policy if exists "Public can read active restaurant popups" on public.restaurant_popups;
+create policy "Public can read active restaurant popups"
+on public.restaurant_popups for select
+using (is_active = true);
+
+drop policy if exists "Owners can read restaurant popups" on public.restaurant_popups;
+create policy "Owners can read restaurant popups"
+on public.restaurant_popups for select
+to authenticated
+using (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = restaurant_popups.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
 drop policy if exists "Public can read addon groups" on public.addon_groups;
 create policy "Public can read addon groups"
 on public.addon_groups for select
@@ -432,6 +476,9 @@ drop policy if exists "MVP can insert banners" on public.banners;
 drop policy if exists "MVP can update banners" on public.banners;
 drop policy if exists "MVP can delete banners" on public.banners;
 drop policy if exists "MVP can insert addon groups" on public.addon_groups;
+drop policy if exists "MVP can insert restaurant popups" on public.restaurant_popups;
+drop policy if exists "MVP can update restaurant popups" on public.restaurant_popups;
+drop policy if exists "MVP can delete restaurant popups" on public.restaurant_popups;
 drop policy if exists "MVP can update addon groups" on public.addon_groups;
 drop policy if exists "MVP can delete addon groups" on public.addon_groups;
 drop policy if exists "MVP can insert addon options" on public.addon_options;
@@ -585,6 +632,49 @@ using (
   exists (
     select 1 from public.restaurants
     where restaurants.id = banners.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Owners can insert restaurant popups" on public.restaurant_popups;
+create policy "Owners can insert restaurant popups"
+on public.restaurant_popups for insert
+to authenticated
+with check (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = restaurant_popups.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Owners can update restaurant popups" on public.restaurant_popups;
+create policy "Owners can update restaurant popups"
+on public.restaurant_popups for update
+to authenticated
+using (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = restaurant_popups.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+)
+with check (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = restaurant_popups.restaurant_id
+      and restaurants.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Owners can delete restaurant popups" on public.restaurant_popups;
+create policy "Owners can delete restaurant popups"
+on public.restaurant_popups for delete
+to authenticated
+using (
+  exists (
+    select 1 from public.restaurants
+    where restaurants.id = restaurant_popups.restaurant_id
       and restaurants.user_id = auth.uid()
   )
 );

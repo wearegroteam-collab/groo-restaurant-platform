@@ -10,6 +10,7 @@ import { CartPanel } from "@/components/menu/cart-panel";
 import { CategoryNav } from "@/components/menu/category-nav";
 import { FeaturedPromotions } from "@/components/menu/featured-promotions";
 import { MenuCategory } from "@/components/menu/menu-category";
+import { PromotionalPopup } from "@/components/menu/promotional-popup";
 import { RestaurantHeader } from "@/components/menu/restaurant-header";
 import { WhatsAppFab } from "@/components/menu/whatsapp-fab";
 import { useCart } from "@/features/cart/use-cart";
@@ -29,6 +30,7 @@ export function PublicMenuExperience({
   restaurantSlug,
 }: PublicMenuExperienceProps) {
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isPopupClosed, setIsPopupClosed] = useState(false);
   const [itemToCustomize, setItemToCustomize] = useState<MenuItem | null>(null);
   const cart = useCart();
   const {
@@ -167,6 +169,13 @@ export function PublicMenuExperience({
         onClose={() => setItemToCustomize(null)}
         theme={currentRestaurant.theme}
       />
+      {currentRestaurant.popup?.isActive && !isPopupClosed ? (
+        <PromotionalPopup
+          onClose={() => setIsPopupClosed(true)}
+          popup={currentRestaurant.popup}
+          theme={currentRestaurant.theme}
+        />
+      ) : null}
     </main>
   );
 }

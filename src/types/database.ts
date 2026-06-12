@@ -218,6 +218,7 @@ export type Database = {
           image_url: string | null;
           tags: string[];
           is_available: boolean;
+          is_featured: boolean;
           sort_order: number;
           created_at: string;
           updated_at: string;
@@ -233,6 +234,7 @@ export type Database = {
           image_url?: string | null;
           tags?: string[];
           is_available?: boolean;
+          is_featured?: boolean;
           sort_order?: number;
           created_at?: string;
           updated_at?: string;
@@ -246,6 +248,7 @@ export type Database = {
           image_url?: string | null;
           tags?: string[];
           is_available?: boolean;
+          is_featured?: boolean;
           sort_order?: number;
           updated_at?: string;
         };
@@ -300,6 +303,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "banners_restaurant_id_fkey";
+            columns: ["restaurant_id"];
+            isOneToOne: false;
+            referencedRelation: "restaurants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      restaurant_popups: {
+        Row: {
+          id: string;
+          restaurant_id: string;
+          title: string;
+          description: string | null;
+          image_url: string | null;
+          button_text: string | null;
+          button_url: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          restaurant_id: string;
+          title: string;
+          description?: string | null;
+          image_url?: string | null;
+          button_text?: string | null;
+          button_url?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          title?: string;
+          description?: string | null;
+          image_url?: string | null;
+          button_text?: string | null;
+          button_url?: string | null;
+          is_active?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_popups_restaurant_id_fkey";
             columns: ["restaurant_id"];
             isOneToOne: false;
             referencedRelation: "restaurants";
