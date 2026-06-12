@@ -79,6 +79,56 @@ export type Database = {
           },
         ];
       };
+      subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          plan_name: string;
+          branch_limit: number;
+          amount: number;
+          status: "trialing" | "active" | "expired" | "cancelled" | "past_due";
+          trial_start: string;
+          trial_end: string;
+          current_period_start: string;
+          current_period_end: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          plan_name?: string;
+          branch_limit?: number;
+          amount?: number;
+          status?: "trialing" | "active" | "expired" | "cancelled" | "past_due";
+          trial_start?: string;
+          trial_end?: string;
+          current_period_start?: string;
+          current_period_end?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          plan_name?: string;
+          branch_limit?: number;
+          amount?: number;
+          status?: "trialing" | "active" | "expired" | "cancelled" | "past_due";
+          trial_start?: string;
+          trial_end?: string;
+          current_period_start?: string;
+          current_period_end?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       categories: {
         Row: {
           id: string;

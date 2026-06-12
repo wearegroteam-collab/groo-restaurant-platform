@@ -22,6 +22,14 @@ import { Container } from "@/components/layout/container";
 import { formatMoney } from "@/features/menus/format-money";
 import { logout, useAuth } from "@/features/auth/use-auth";
 import { useRestaurantsStore } from "@/features/restaurants/use-restaurant-store";
+import {
+  activatePlan,
+  getLatestSubscription,
+  getTrialDaysRemaining,
+  isSubscriptionWritable,
+  type Subscription,
+} from "@/features/subscriptions/subscriptions";
+import { plans, type Plan } from "@/features/subscriptions/plans";
 import { uploadMenuImage } from "@/lib/supabase/storage";
 import { extractColombianMobile, isValidColombianMobile } from "@/lib/whatsapp";
 
@@ -83,7 +91,14 @@ type Toast = {
 };
 
 type FormErrors<T extends string> = Partial<Record<T, string>>;
-type AdminSection = "restaurant" | "categories" | "products" | "addons" | "banners" | "publicMenu";
+type AdminSection =
+  | "restaurant"
+  | "categories"
+  | "products"
+  | "addons"
+  | "banners"
+  | "publicMenu"
+  | "subscription";
 
 const adminSections: Array<{ id: AdminSection; label: string }> = [
   { id: "restaurant", label: "Restaurante" },
@@ -92,6 +107,7 @@ const adminSections: Array<{ id: AdminSection; label: string }> = [
   { id: "addons", label: "Adiciones" },
   { id: "banners", label: "Banners" },
   { id: "publicMenu", label: "Menu publico" },
+  { id: "subscription", label: "Plan y Suscripcion" },
 ];
 
 const emptyCategoryForm: CategoryForm = {
@@ -189,6 +205,18 @@ function delay(ms = 350) {
   });
 }
 
+function formatDate(value?: string) {
+  if (!value) {
+    return "Pendiente";
+  }
+
+  return new Intl.DateTimeFormat("es-CO", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
 export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
   const { session } = useAuth();
   const {
@@ -232,8 +260,41 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
   const [restaurantToDelete, setRestaurantToDelete] = useState<Restaurant | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [activeSection, setActiveSection] = useState<AdminSection>("restaurant");
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [isLoadingSubscription, setIsLoadingSubscription] = useState(false);
+  const canManageRestaurant = isLoadingSubscription || isSubscriptionWritable(subscription);
+  const trialDaysRemaining = getTrialDaysRemaining(subscription);
+  const subscriptionStatus = subscription
+    ? isSubscriptionWritable(subscription)
+      ? subscription.status
+      : "expired"
+    : "Sin plan";
+
+  async function refreshSubscription() {
+    if (!session) {
+      setSubscription(null);
+      return;
+    }
+
+    setIsLoadingSubscription(true);
+
+    try {
+      setSubscription(await getLatestSubscription(session.id));
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "No se pudo cargar la suscripcion.", "error");
+    } finally {
+      setIsLoadingSubscription(false);
+    }
+  }
 
   function updateRestaurant(updater: (restaurant: Restaurant) => Restaurant) {
+    if (!canManageRestaurant) {
+      setActiveSection("subscription");
+      return Promise.reject(
+        new Error("Tu periodo de prueba expiro. Activa un plan para crear o editar."),
+      );
+    }
+
     return updateRestaurantInStore(restaurant.id, updater);
   }
 
@@ -246,6 +307,29 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
       .then(() => showToast("Enlace copiado.", "success"))
       .catch(() => showToast("No se pudo copiar el enlace.", "error"));
   }
+
+  async function selectPlan(plan: Plan) {
+    if (!session) {
+      showToast("Debes iniciar sesion.", "error");
+      return;
+    }
+
+    setSavingTarget(`plan-${plan.branchLimit}`);
+
+    try {
+      setSubscription(await activatePlan(session.id, plan));
+      showToast("Plan actualizado.", "success");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "No se pudo actualizar el plan.", "error");
+    } finally {
+      setSavingTarget(null);
+    }
+  }
+
+  useEffect(() => {
+    refreshSubscription();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.id]);
 
   useEffect(() => {
     if (!restaurants.length) {
@@ -300,6 +384,12 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
     action: () => void | Promise<unknown>,
     successMessage: string,
   ) {
+    if (!canManageRestaurant) {
+      showToast("Tu periodo de prueba expiro. Activa un plan para crear o editar.", "error");
+      setActiveSection("subscription");
+      return;
+    }
+
     setSavingTarget(target);
 
     try {
@@ -1109,6 +1199,17 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
             {restaurantsError}
           </section>
         ) : null}
+        {!canManageRestaurant && !isLoadingSubscription ? (
+          <section className="grid gap-3 rounded-lg border border-red-200 bg-red-50 p-5 sm:grid-cols-[1fr_auto] sm:items-center">
+            <div>
+              <p className="font-bold text-red-700">Tu periodo de prueba expiro</p>
+              <p className="mt-1 text-sm text-red-700/75">
+                Tus datos siguen guardados. Activa un plan para crear o editar restaurantes.
+              </p>
+            </div>
+            <Button onClick={() => setActiveSection("subscription")}>Activar plan</Button>
+          </section>
+        ) : null}
 
         <nav className="sticky top-[88px] z-20 overflow-x-auto rounded-lg border border-ink/10 bg-white p-2 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex min-w-max gap-2">
@@ -1175,6 +1276,84 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
               </div>
               <div className="rounded-lg border border-dashed border-ink/15 bg-white p-5 text-sm text-ink/60">
                 Espacio reservado para QR del menu.
+              </div>
+            </div>
+          </Panel>
+        ) : null}
+
+        {activeSection === "subscription" ? (
+          <Panel title="Plan y Suscripcion">
+            <div className="grid gap-6">
+              <p className="rounded-lg border border-brand-100 bg-brand-50 p-4 text-sm font-semibold text-brand-900">
+                Empieza con 14 dias gratis para tu primera sucursal.
+              </p>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <article className="rounded-lg border border-ink/10 bg-white p-4">
+                  <p className="text-sm font-semibold text-ink/60">Plan actual</p>
+                  <p className="mt-2 text-2xl font-bold">{subscription?.plan_name ?? "Sin plan"}</p>
+                </article>
+                <article className="rounded-lg border border-ink/10 bg-white p-4">
+                  <p className="text-sm font-semibold text-ink/60">Estado</p>
+                  <p className="mt-2 text-2xl font-bold">
+                    {isLoadingSubscription ? "Cargando" : subscriptionStatus}
+                  </p>
+                </article>
+                <article className="rounded-lg border border-ink/10 bg-white p-4">
+                  <p className="text-sm font-semibold text-ink/60">Restaurantes usados</p>
+                  <p className="mt-2 text-3xl font-bold">{restaurants.length}</p>
+                </article>
+                <article className="rounded-lg border border-ink/10 bg-white p-4">
+                  <p className="text-sm font-semibold text-ink/60">Limite permitido</p>
+                  <p className="mt-2 text-3xl font-bold">{subscription?.branch_limit ?? 0}</p>
+                </article>
+                <article className="rounded-lg border border-ink/10 bg-white p-4">
+                  <p className="text-sm font-semibold text-ink/60">Dias restantes de prueba</p>
+                  <p className="mt-2 text-3xl font-bold">{trialDaysRemaining}</p>
+                </article>
+                <article className="rounded-lg border border-ink/10 bg-white p-4">
+                  <p className="text-sm font-semibold text-ink/60">Fecha de renovacion</p>
+                  <p className="mt-2 text-2xl font-bold">
+                    {formatDate(subscription?.current_period_end)}
+                  </p>
+                </article>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                {plans.map((plan) => {
+                  const isCurrentPlan = subscription?.branch_limit === plan.branchLimit;
+                  const isExpired = !canManageRestaurant && !isLoadingSubscription;
+                  const actionLabel = isExpired
+                    ? "Activar plan"
+                    : isCurrentPlan
+                      ? "Actualizar plan"
+                      : "Cambiar plan";
+
+                  return (
+                    <article
+                      className={`rounded-lg border bg-white p-5 shadow-sm ${
+                        isCurrentPlan ? "border-brand-500" : "border-ink/10"
+                      }`}
+                      key={plan.name}
+                    >
+                      <p className="text-sm font-semibold text-ink/60">{plan.name}</p>
+                      <p className="mt-2 text-3xl font-bold">
+                        {formatMoney({ amount: plan.amount, currency: "COP" })}
+                      </p>
+                      <p className="mt-2 text-sm text-ink/60">
+                        Hasta {plan.branchLimit} restaurante{plan.branchLimit === 1 ? "" : "s"}.
+                      </p>
+                      <Button
+                        className="mt-5 w-full"
+                        disabled={savingTarget === `plan-${plan.branchLimit}`}
+                        onClick={() => selectPlan(plan)}
+                        variant={isCurrentPlan ? "outline" : "primary"}
+                      >
+                        {savingTarget === `plan-${plan.branchLimit}` ? "Actualizando..." : actionLabel}
+                      </Button>
+                    </article>
+                  );
+                })}
               </div>
             </div>
           </Panel>

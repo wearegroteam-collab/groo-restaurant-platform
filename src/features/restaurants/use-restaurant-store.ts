@@ -4,6 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import type { AddonGroup, MenuBanner, MenuCategory, MenuItem, Restaurant } from "@/types/menu";
 import { createClient } from "@/lib/supabase/client";
+import {
+  ensureTrialSubscription,
+  getLatestSubscription,
+  isSubscriptionWritable,
+} from "@/features/subscriptions/subscriptions";
 
 const DEFAULT_IMAGE_URL =
   "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80";
@@ -401,6 +406,37 @@ async function replaceRestaurantGraph(restaurant: Restaurant, userId?: string) {
   }
 }
 
+async function assertBranchLimit(userId: string) {
+  const supabase = createClient() as unknown as SupabaseClient;
+  const subscription = await ensureTrialSubscription(userId);
+  if (!isSubscriptionWritable(subscription)) {
+    throw new Error("Tu periodo de prueba expiro. Activa un plan para crear o editar restaurantes.");
+  }
+
+  const { count, error } = await supabase
+    .from("restaurants")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+
+  normalizeSupabaseError(error);
+
+  if ((count ?? 0) >= subscription.branch_limit) {
+    throw new Error(
+      `Tu plan actual permite ${subscription.branch_limit} restaurante${
+        subscription.branch_limit === 1 ? "" : "s"
+      }. Actualiza tu plan para crear mas sucursales.`,
+    );
+  }
+}
+
+async function assertWritableSubscription(userId: string) {
+  const subscription = await getLatestSubscription(userId);
+
+  if (!isSubscriptionWritable(subscription)) {
+    throw new Error("Tu periodo de prueba expiro. Activa un plan para crear o editar restaurantes.");
+  }
+}
+
 export function useRestaurantsStore() {
   const [restaurants, setRestaurantsState] = useState<Restaurant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -443,6 +479,8 @@ export function useRestaurantsStore() {
       throw new Error("Debes iniciar sesion.");
     }
 
+    await assertWritableSubscription(user.id);
+
     const restaurantsResult = await supabase.from("restaurants").select("id");
     normalizeSupabaseError(restaurantsResult.error);
 
@@ -469,6 +507,10 @@ export function useRestaurantsStore() {
       throw new Error("Debes iniciar sesion.");
     }
 
+    if (!nextRestaurant.id) {
+      await assertBranchLimit(user.id);
+    }
+
     await replaceRestaurantGraph(nextRestaurant, user.id);
     return refreshRestaurants();
   }
@@ -483,12 +525,32 @@ export function useRestaurantsStore() {
       throw new Error("Restaurante no encontrado.");
     }
 
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      throw new Error("Debes iniciar sesion.");
+    }
+
+    await assertWritableSubscription(user.id);
     await replaceRestaurantGraph(updater(currentRestaurant));
     return refreshRestaurants();
   }
 
   async function deleteRestaurant(restaurantId: string) {
     const supabase = createClient() as unknown as SupabaseClient;
+    const authClient = createClient();
+    const {
+      data: { user },
+    } = await authClient.auth.getUser();
+
+    if (!user) {
+      throw new Error("Debes iniciar sesion.");
+    }
+
+    await assertWritableSubscription(user.id);
     const result = await supabase.from("restaurants").delete().eq("id", restaurantId);
     normalizeSupabaseError(result.error);
     return refreshRestaurants();

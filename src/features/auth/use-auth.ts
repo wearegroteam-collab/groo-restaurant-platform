@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import { ensureTrialSubscription } from "@/features/subscriptions/subscriptions";
 
 type AuthResult =
   | {
@@ -32,7 +33,7 @@ export async function login(email: string, password: string): Promise<AuthResult
 
 export async function signup(email: string, password: string): Promise<AuthResult> {
   const supabase = createClient();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email: email.trim().toLowerCase(),
     password,
   });
@@ -42,6 +43,14 @@ export async function signup(email: string, password: string): Promise<AuthResul
       ok: false,
       error: error.message,
     };
+  }
+
+  if (data.user) {
+    try {
+      await ensureTrialSubscription(data.user.id);
+    } catch {
+      // Supabase may require email confirmation, in which case the database trigger creates the trial.
+    }
   }
 
   return { ok: true };

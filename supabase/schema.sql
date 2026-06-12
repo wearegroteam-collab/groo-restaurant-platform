@@ -25,6 +25,25 @@ create table if not exists public.restaurants (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  plan_name text not null default '1 sucursal',
+  branch_limit integer not null default 1 check (branch_limit > 0),
+  amount integer not null default 30000 check (amount >= 0),
+  status text not null default 'trialing' check (
+    status in ('trialing', 'active', 'expired', 'cancelled', 'past_due')
+  ),
+  trial_start timestamptz not null default now(),
+  trial_end timestamptz not null default (now() + interval '14 days'),
+  current_period_start timestamptz not null default now(),
+  current_period_end timestamptz not null default (now() + interval '14 days'),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists subscriptions_user_id_idx on public.subscriptions(user_id);
+
 alter table public.restaurants
 add column if not exists user_id uuid references auth.users(id) on delete cascade;
 
@@ -146,6 +165,11 @@ create trigger set_restaurants_updated_at
 before update on public.restaurants
 for each row execute function public.set_updated_at();
 
+drop trigger if exists set_subscriptions_updated_at on public.subscriptions;
+create trigger set_subscriptions_updated_at
+before update on public.subscriptions
+for each row execute function public.set_updated_at();
+
 drop trigger if exists set_categories_updated_at on public.categories;
 create trigger set_categories_updated_at
 before update on public.categories
@@ -171,8 +195,45 @@ create trigger set_addon_options_updated_at
 before update on public.addon_options
 for each row execute function public.set_updated_at();
 
+create or replace function public.create_trial_subscription_for_new_user()
+returns trigger as $$
+begin
+  insert into public.subscriptions (
+    user_id,
+    plan_name,
+    branch_limit,
+    amount,
+    status,
+    trial_start,
+    trial_end,
+    current_period_start,
+    current_period_end
+  )
+  values (
+    new.id,
+    '1 sucursal',
+    1,
+    30000,
+    'trialing',
+    now(),
+    now() + interval '14 days',
+    now(),
+    now() + interval '14 days'
+  )
+  on conflict (user_id) do nothing;
+
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists create_trial_subscription_on_auth_user_created on auth.users;
+create trigger create_trial_subscription_on_auth_user_created
+after insert on auth.users
+for each row execute function public.create_trial_subscription_for_new_user();
+
 alter table public.users enable row level security;
 alter table public.restaurants enable row level security;
+alter table public.subscriptions enable row level security;
 alter table public.categories enable row level security;
 alter table public.products enable row level security;
 alter table public.banners enable row level security;
@@ -184,6 +245,25 @@ drop policy if exists "Public can read restaurants" on public.restaurants;
 create policy "Public can read restaurants"
 on public.restaurants for select
 using (true);
+
+drop policy if exists "Users can read own subscriptions" on public.subscriptions;
+create policy "Users can read own subscriptions"
+on public.subscriptions for select
+to authenticated
+using (auth.uid() = user_id);
+
+drop policy if exists "Users can insert own subscriptions" on public.subscriptions;
+create policy "Users can insert own subscriptions"
+on public.subscriptions for insert
+to authenticated
+with check (auth.uid() = user_id);
+
+drop policy if exists "Users can update own subscriptions" on public.subscriptions;
+create policy "Users can update own subscriptions"
+on public.subscriptions for update
+to authenticated
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
 
 drop policy if exists "Public can read active categories" on public.categories;
 create policy "Public can read active categories"
