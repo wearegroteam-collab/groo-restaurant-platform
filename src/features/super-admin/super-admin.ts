@@ -44,6 +44,11 @@ export type UpdateSubscriptionInput = {
   provider?: SubscriptionProvider | null;
 };
 
+export type UpdateProfileRoleInput = {
+  userId: string;
+  role: ProfileRole;
+};
+
 type RestaurantRow = {
   id: string;
   name: string;
@@ -203,6 +208,18 @@ export async function updateSubscriptionAsSuperAdmin(input: UpdateSubscriptionIn
   }
 
   return data as Subscription;
+}
+
+export async function updateProfileRoleAsSuperAdmin(input: UpdateProfileRoleInput) {
+  const supabase = adminClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ role: input.role })
+    .eq("id", input.userId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 export async function toggleRestaurantActiveAsSuperAdmin(restaurantId: string, isActive: boolean) {

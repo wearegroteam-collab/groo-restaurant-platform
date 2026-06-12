@@ -7,7 +7,9 @@ import {
   getSuperAdminPlan,
   isSuperAdmin,
   toggleRestaurantActiveAsSuperAdmin,
+  updateProfileRoleAsSuperAdmin,
   updateSubscriptionAsSuperAdmin,
+  type ProfileRole,
   type SubscriptionProvider,
 } from "@/features/super-admin/super-admin";
 import type { SubscriptionStatus } from "@/features/subscriptions/subscriptions";
@@ -124,6 +126,17 @@ export async function toggleRestaurantActiveAction(formData: FormData) {
     String(formData.get("restaurantId") ?? ""),
     String(formData.get("isActive") ?? "") === "true",
   );
+
+  revalidatePath("/super-admin");
+}
+
+export async function updateProfileRoleAction(formData: FormData) {
+  await requireSuperAdmin();
+
+  await updateProfileRoleAsSuperAdmin({
+    userId: String(formData.get("userId") ?? ""),
+    role: String(formData.get("role") ?? "user") as ProfileRole,
+  });
 
   revalidatePath("/super-admin");
 }
