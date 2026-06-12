@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/layout/container";
+import { AuthAwareAccessButton } from "@/components/landing/auth-aware-access-button";
 
 const proofPoints = [
   "Sin comisiones por venta",
@@ -147,9 +148,7 @@ export default function HomePage() {
               <Button asChild variant="secondary">
                 <Link href="/demo/menu">Ver ejemplo</Link>
               </Button>
-              <Button asChild variant="outline">
-                <Link href="/login">Ingresar</Link>
-              </Button>
+              <AuthAwareAccessButton />
             </div>
             <div className="grid gap-2 text-sm font-semibold text-white/80 sm:grid-cols-3">
               {proofPoints.map((point) => (
@@ -320,11 +319,19 @@ export default function HomePage() {
                   por WhatsApp con una prueba gratis de 14 dias.
                 </p>
               </div>
-              <Button asChild>
-                <Link href="/signup">
-                  Crear mi menu gratis <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
+              <div className="grid gap-3 justify-items-start lg:justify-items-end">
+                <Button asChild>
+                  <Link href="/signup">
+                    Crear mi menu gratis <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <p className="text-sm font-semibold text-white/72">
+                  Ya tienes cuenta?{" "}
+                  <Link className="text-brand-100 underline-offset-4 hover:underline" href="/login">
+                    Inicia sesion
+                  </Link>
+                </p>
+              </div>
             </div>
           </div>
         </Container>
