@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Copy, Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
 import type { MenuTheme, Restaurant } from "@/types/menu";
-import { getLineUnitAmount, type CartLine } from "@/features/cart/use-cart";
+import { getLineUnitAmount, type CartCustomer, type CartLine } from "@/features/cart/use-cart";
 import { formatMoney } from "@/features/menus/format-money";
 import { cn } from "@/lib/utils/cn";
 import { buildColombianWhatsAppUrl } from "@/lib/whatsapp";
@@ -11,7 +11,10 @@ import { buildColombianWhatsAppUrl } from "@/lib/whatsapp";
 type CartPanelProps = {
   isOpen: boolean;
   lines: CartLine[];
+  customer: CartCustomer;
+  onCustomerChange: (field: keyof CartCustomer, value: string) => void;
   onAdd: (line: CartLine) => void;
+  onCheckoutSuccess: () => void;
   onClose: () => void;
   onDecrease: (lineId: string) => void;
   onRemove: (lineId: string) => void;
@@ -22,22 +25,6 @@ type CartPanelProps = {
 
 type DeliveryType = "delivery" | "pickup" | "";
 type PaymentMethod = "cash" | "transfer" | "";
-
-type CustomerForm = {
-  deliveryType: DeliveryType;
-  paymentMethod: PaymentMethod;
-  name: string;
-  phone: string;
-  address: string;
-};
-
-const emptyCustomerForm: CustomerForm = {
-  deliveryType: "",
-  paymentMethod: "",
-  name: "",
-  phone: "",
-  address: "",
-};
 
 function getDeliveryLabel(deliveryType: DeliveryType) {
   return deliveryType === "delivery" ? "Domicilio" : "Retiro en local";
@@ -54,7 +41,7 @@ function buildOrderMessage({
   productsTotal,
   totalAmount,
 }: {
-  customer: CustomerForm;
+  customer: CartCustomer;
   deliveryFee: number;
   lines: CartLine[];
   productsTotal: number;
@@ -105,7 +92,7 @@ function buildWhatsAppHref({
   restaurant,
   totalAmount,
 }: {
-  customer: CustomerForm;
+  customer: CartCustomer;
   deliveryFee: number;
   lines: CartLine[];
   productsTotal: number;
@@ -130,10 +117,13 @@ function getBankDetailsText(restaurant: Restaurant) {
 }
 
 export function CartPanel({
+  customer,
   isOpen,
   lines,
   onAdd,
+  onCheckoutSuccess,
   onClose,
+  onCustomerChange,
   onDecrease,
   onRemove,
   restaurant,
@@ -142,8 +132,7 @@ export function CartPanel({
 }: CartPanelProps) {
   const isDark = theme === "dark";
   const currency = lines[0]?.item.price.currency ?? "COP";
-  const [customer, setCustomer] = useState<CustomerForm>(emptyCustomerForm);
-  const [errors, setErrors] = useState<Partial<Record<keyof CustomerForm | "cart", string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof CartCustomer | "cart", string>>>({});
   const productsTotal = totalAmount;
   const deliveryFee = customer.deliveryType === "delivery" ? restaurant.deliveryFee : 0;
   const finalTotal = productsTotal + deliveryFee;
@@ -153,17 +142,13 @@ export function CartPanel({
     return null;
   }
 
-  function updateCustomer(field: keyof CustomerForm, value: string) {
-    setCustomer((currentCustomer) => ({
-      ...currentCustomer,
-      [field]: value,
-      ...(field === "deliveryType" && value === "pickup" ? { address: "" } : {}),
-    }));
+  function updateCustomer(field: keyof CartCustomer, value: string) {
+    onCustomerChange(field, value);
     setErrors((currentErrors) => ({ ...currentErrors, [field]: undefined }));
   }
 
   function validateOrder() {
-    const nextErrors: Partial<Record<keyof CustomerForm | "cart", string>> = {};
+    const nextErrors: Partial<Record<keyof CartCustomer | "cart", string>> = {};
 
     if (!lines.length) {
       nextErrors.cart = "Agrega al menos un producto al pedido.";
@@ -216,6 +201,9 @@ export function CartPanel({
     }
 
     window.open(href, "_blank", "noopener,noreferrer");
+    onCheckoutSuccess();
+    onClose();
+    setErrors({});
   }
 
   async function copyBankDetails() {

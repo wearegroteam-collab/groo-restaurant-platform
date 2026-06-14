@@ -32,12 +32,12 @@ export function PublicMenuExperience({
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isPopupClosed, setIsPopupClosed] = useState(false);
   const [itemToCustomize, setItemToCustomize] = useState<MenuItem | null>(null);
-  const cart = useCart();
   const {
     error,
     isLoading,
     restaurant: currentRestaurant,
   } = useRestaurantBySlug(initialRestaurants, restaurantSlug, { source: dataSource });
+  const cart = useCart(currentRestaurant, restaurantSlug);
 
   if (isLoading) {
     return (
@@ -149,10 +149,13 @@ export function PublicMenuExperience({
             totalQuantity={cart.totalQuantity}
           />
           <CartPanel
+            customer={cart.customer}
             isOpen={isCartOpen}
             lines={cart.lines}
             onAdd={(line) => cart.addItem(line.item, line.selectedAddons)}
+            onCheckoutSuccess={cart.clearCart}
             onClose={() => setIsCartOpen(false)}
+            onCustomerChange={cart.updateCustomer}
             onDecrease={cart.decreaseLine}
             onRemove={cart.removeLine}
             restaurant={currentRestaurant}
