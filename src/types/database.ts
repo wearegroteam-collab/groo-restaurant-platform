@@ -134,8 +134,9 @@ export type Database = {
           plan_name: string;
           branch_limit: number;
           amount: number;
-          status: "trialing" | "active" | "expired" | "cancelled" | "past_due";
+          status: "pending" | "trialing" | "active" | "expired" | "cancelled" | "past_due";
           provider: "mercadopago" | "manual" | null;
+          mercadopago_preapproval_id: string | null;
           trial_start: string;
           trial_end: string;
           current_period_start: string;
@@ -150,8 +151,9 @@ export type Database = {
           plan_name?: string;
           branch_limit?: number;
           amount?: number;
-          status?: "trialing" | "active" | "expired" | "cancelled" | "past_due";
+          status?: "pending" | "trialing" | "active" | "expired" | "cancelled" | "past_due";
           provider?: "mercadopago" | "manual" | null;
+          mercadopago_preapproval_id?: string | null;
           trial_start?: string;
           trial_end?: string;
           current_period_start?: string;
@@ -164,8 +166,9 @@ export type Database = {
           plan_name?: string;
           branch_limit?: number;
           amount?: number;
-          status?: "trialing" | "active" | "expired" | "cancelled" | "past_due";
+          status?: "pending" | "trialing" | "active" | "expired" | "cancelled" | "past_due";
           provider?: "mercadopago" | "manual" | null;
+          mercadopago_preapproval_id?: string | null;
           trial_start?: string;
           trial_end?: string;
           current_period_start?: string;

@@ -25,6 +25,14 @@ Copia `.env.example` a `.env.local` y completa:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `MERCADOPAGO_ACCESS_TOKEN`
+- `NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY`
 - `NEXT_PUBLIC_APP_URL=https://menus.grooteam.com`
 
 La capa inicial esta en `src/lib/supabase`.
+
+## Mercado Pago
+
+La ruta `/api/payments/mercadopago/create-subscription` crea una suscripcion recurrente
+con Mercado Pago usando `preapproval`. El webhook en
+`/api/payments/mercadopago/webhook` consulta la suscripcion real en Mercado Pago antes
+de actualizar Supabase.

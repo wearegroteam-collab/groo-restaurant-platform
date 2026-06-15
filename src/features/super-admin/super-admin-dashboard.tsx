@@ -39,7 +39,14 @@ const detailTabs: Array<{ id: UserDetailTab; label: string }> = [
   { id: "permissions", label: "Permisos" },
 ];
 
-const statuses: SubscriptionStatus[] = ["trialing", "active", "expired", "cancelled", "past_due"];
+const statuses: SubscriptionStatus[] = [
+  "pending",
+  "trialing",
+  "active",
+  "expired",
+  "cancelled",
+  "past_due",
+];
 const roles: ProfileRole[] = ["user", "super_admin"];
 
 const inputClass =

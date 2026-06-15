@@ -46,9 +46,10 @@ create table if not exists public.subscriptions (
   branch_limit integer not null default 1 check (branch_limit > 0),
   amount integer not null default 30000 check (amount >= 0),
   status text not null default 'trialing' check (
-    status in ('trialing', 'active', 'expired', 'cancelled', 'past_due')
+    status in ('pending', 'trialing', 'active', 'expired', 'cancelled', 'past_due')
   ),
   provider text default 'mercadopago' check (provider in ('mercadopago', 'manual')),
+  mercadopago_preapproval_id text,
   trial_start timestamptz not null default now(),
   trial_end timestamptz not null default (now() + interval '14 days'),
   current_period_start timestamptz not null default now(),
@@ -65,6 +66,34 @@ add column if not exists cancelled_at timestamptz;
 
 alter table public.subscriptions
 add column if not exists provider text default 'mercadopago';
+
+alter table public.subscriptions
+add column if not exists mercadopago_preapproval_id text;
+
+do $$
+begin
+  if exists (
+    select 1
+    from pg_constraint
+    where conname = 'subscriptions_status_check'
+      and conrelid = 'public.subscriptions'::regclass
+  ) then
+    alter table public.subscriptions
+    drop constraint subscriptions_status_check;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'subscriptions_status_check'
+      and conrelid = 'public.subscriptions'::regclass
+  ) then
+    alter table public.subscriptions
+    add constraint subscriptions_status_check check (
+      status in ('pending', 'trialing', 'active', 'expired', 'cancelled', 'past_due')
+    );
+  end if;
+end $$;
 
 do $$
 begin

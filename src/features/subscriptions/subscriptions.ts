@@ -4,7 +4,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import type { Plan } from "@/features/subscriptions/plans";
 
-export type SubscriptionStatus = "trialing" | "active" | "expired" | "cancelled" | "past_due";
+export type SubscriptionStatus =
+  | "pending"
+  | "trialing"
+  | "active"
+  | "expired"
+  | "cancelled"
+  | "past_due";
 
 export type Subscription = {
   id: string;
@@ -14,6 +20,7 @@ export type Subscription = {
   amount: number;
   status: SubscriptionStatus;
   provider: "mercadopago" | "manual" | null;
+  mercadopago_preapproval_id: string | null;
   trial_start: string;
   trial_end: string;
   current_period_start: string;

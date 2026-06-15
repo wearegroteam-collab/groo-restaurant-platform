@@ -32,7 +32,6 @@ import { formatMoney } from "@/features/menus/format-money";
 import { logout, useAuth } from "@/features/auth/use-auth";
 import { useRestaurantsStore } from "@/features/restaurants/use-restaurant-store";
 import {
-  activatePlan,
   cancelSubscription,
   getLatestSubscription,
   getTrialDaysRemaining,
@@ -361,10 +360,27 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
     setSavingTarget(`plan-${plan.branchLimit}`);
 
     try {
-      setSubscription(await activatePlan(session.id, plan));
-      showToast("Plan actualizado.", "success");
+      const response = await fetch("/api/payments/mercadopago/create-subscription", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: session.email,
+          plan_name: plan.value,
+          user_id: session.id,
+        }),
+      });
+      const data = (await response.json()) as { error?: string; initPoint?: string };
+
+      if (!response.ok || !data.initPoint) {
+        throw new Error(data.error ?? "No se pudo crear la suscripcion en Mercado Pago.");
+      }
+
+      showToast("Te llevaremos a Mercado Pago para finalizar.", "success");
+      window.location.href = data.initPoint;
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "No se pudo actualizar el plan.", "error");
+      showToast(error instanceof Error ? error.message : "No se pudo iniciar Mercado Pago.", "error");
     } finally {
       setSavingTarget(null);
     }
