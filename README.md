@@ -26,6 +26,9 @@ Copia `.env.example` a `.env.local` y completa:
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `MERCADOPAGO_ACCESS_TOKEN`
 - `NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY`
+- `RESEND_API_KEY`
+- `RESEND_FROM_EMAIL="Groo Team <no-reply@grooteam.com>"`
+- `CRON_SECRET`
 - `NEXT_PUBLIC_APP_URL=https://menus.grooteam.com`
 
 La capa inicial esta en `src/lib/supabase`.
@@ -36,3 +39,13 @@ La ruta `/api/payments/mercadopago/create-subscription` crea una suscripcion rec
 con Mercado Pago usando `preapproval`. El webhook en
 `/api/payments/mercadopago/webhook` consulta la suscripcion real en Mercado Pago antes
 de actualizar Supabase.
+
+## Correos transaccionales
+
+Los correos se envian con Resend desde `src/lib/email`. Las plantillas React estan en
+`/emails` y usan el branding verde, negro y blanco de Groo Team.
+
+- Registro: `/api/auth/signup` genera el enlace de Supabase Auth y envia la confirmacion con Resend.
+- Bienvenida: se envia al confirmar correo en `/auth/callback`.
+- Suscripciones: el webhook de Mercado Pago envia activacion, renovacion, pago fallido y cancelacion.
+- Trial por vencer: programa un cron diario hacia `/api/emails/trial-reminders` con `Authorization: Bearer CRON_SECRET`.

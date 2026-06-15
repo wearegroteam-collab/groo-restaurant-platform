@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import { getAppUrl } from "@/lib/config/app-url";
-import { ensureTrialSubscription } from "@/features/subscriptions/subscriptions";
 
 type AuthResult =
   | {
@@ -33,28 +31,23 @@ export async function login(email: string, password: string): Promise<AuthResult
 }
 
 export async function signup(email: string, password: string): Promise<AuthResult> {
-  const supabase = createClient();
-  const { data, error } = await supabase.auth.signUp({
-    email: email.trim().toLowerCase(),
-    password,
-    options: {
-      emailRedirectTo: `${getAppUrl()}/auth/callback?next=/auth/confirmed`,
+  const response = await fetch("/api/auth/signup", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
     },
+    body: JSON.stringify({
+      email: email.trim().toLowerCase(),
+      password,
+    }),
   });
+  const data = (await response.json().catch(() => ({}))) as { error?: string };
 
-  if (error) {
+  if (!response.ok) {
     return {
       ok: false,
-      error: error.message,
+      error: data.error ?? "No se pudo crear la cuenta.",
     };
-  }
-
-  if (data.user) {
-    try {
-      await ensureTrialSubscription(data.user.id);
-    } catch {
-      // Supabase may require email confirmation, in which case the database trigger creates the trial.
-    }
   }
 
   return { ok: true };

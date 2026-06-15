@@ -3,6 +3,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlanByValue, type Plan } from "@/features/subscriptions/plans";
 import type { Subscription, SubscriptionStatus } from "@/features/subscriptions/subscriptions";
+import {
+  sendCancellationEmail,
+  sendPaymentFailedEmail,
+  sendRenewalSuccessEmail,
+  sendSubscriptionActivatedEmail,
+} from "@/lib/email/transactional";
 
 type MercadoPagoWebhookBody = {
   action?: string;
@@ -126,6 +132,51 @@ function preserveValidStatusForPending(
   return "pending";
 }
 
+async function getProfileEmail(supabase: SupabaseClient, userId: string) {
+  const { data } = await supabase
+    .from("profiles")
+    .select("email")
+    .eq("id", userId)
+    .maybeSingle();
+
+  return typeof data?.email === "string" ? data.email : null;
+}
+
+async function sendSubscriptionEventEmail({
+  email,
+  previousStatus,
+  status,
+  planName,
+}: {
+  email: string | null;
+  previousStatus?: SubscriptionStatus;
+  status: SubscriptionStatus;
+  planName: string;
+}) {
+  if (!email) {
+    return;
+  }
+
+  if (status === "active" && previousStatus === "active") {
+    await sendRenewalSuccessEmail(email, planName);
+    return;
+  }
+
+  if (status === "active") {
+    await sendSubscriptionActivatedEmail(email, planName);
+    return;
+  }
+
+  if (status === "cancelled") {
+    await sendCancellationEmail(email);
+    return;
+  }
+
+  if (status === "past_due") {
+    await sendPaymentFailedEmail(email);
+  }
+}
+
 export async function POST(request: Request) {
   const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
 
@@ -178,6 +229,7 @@ export async function POST(request: Request) {
     mapPreapprovalStatus(preapproval.status),
     (currentSubscription as Subscription | null) ?? null,
   );
+  const previousStatus = (currentSubscription as Subscription | null)?.status;
   const { error } = await supabase
     .from("subscriptions")
     .upsert(
@@ -190,6 +242,17 @@ export async function POST(request: Request) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  try {
+    await sendSubscriptionEventEmail({
+      email: await getProfileEmail(supabase, reference.userId),
+      planName: reference.plan.name,
+      previousStatus,
+      status,
+    });
+  } catch (error) {
+    console.error("No se pudo enviar el correo transaccional de suscripcion.", error);
   }
 
   return NextResponse.json({ received: true, status });
