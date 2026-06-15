@@ -315,6 +315,12 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
   const canManageRestaurant = isSubscriptionWritable(subscription);
   const isSubscriptionCancelled = subscription?.status === "cancelled";
   const trialDaysRemaining = getTrialDaysRemaining(subscription);
+  const isTrialing = subscription?.status === "trialing";
+  const shouldShowTrialWarning =
+    isTrialing && trialDaysRemaining > 3 && trialDaysRemaining <= 7;
+  const shouldShowTrialUrgentWarning =
+    isTrialing && trialDaysRemaining > 0 && trialDaysRemaining <= 3;
+  const defaultPlan = plans.find((plan) => plan.branchLimit === subscription?.branch_limit) ?? plans[0];
   const subscriptionStatus = !subscription
     ? "Sin plan"
     : canManageRestaurant
@@ -1483,6 +1489,26 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
               <p className="rounded-lg border border-brand-100 bg-brand-50 p-4 text-sm font-semibold text-brand-900">
                 Empieza con 14 dias gratis para tu primera sucursal.
               </p>
+              {shouldShowTrialWarning ? (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900">
+                  Tu prueba vence en {trialDaysRemaining} dias. Activa tu plan para evitar
+                  interrupciones.
+                </p>
+              ) : null}
+              {shouldShowTrialUrgentWarning ? (
+                <div className="grid gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-900 sm:grid-cols-[1fr_auto] sm:items-center">
+                  <p>
+                    Tu prueba vence en {trialDaysRemaining} dias. Activa tu plan para evitar
+                    interrupciones.
+                  </p>
+                  <Button
+                    disabled={!defaultPlan || savingTarget === `plan-${defaultPlan?.branchLimit}`}
+                    onClick={() => defaultPlan && selectPlan(defaultPlan)}
+                  >
+                    Activar Plan
+                  </Button>
+                </div>
+              ) : null}
 
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <article className="rounded-lg border border-ink/10 bg-white p-4">
@@ -1508,9 +1534,11 @@ export function AdminDashboard({ initialRestaurants }: AdminDashboardProps) {
                   <p className="mt-2 text-3xl font-bold">{trialDaysRemaining}</p>
                 </article>
                 <article className="rounded-lg border border-ink/10 bg-white p-4">
-                  <p className="text-sm font-semibold text-ink/60">Fecha de renovacion</p>
+                  <p className="text-sm font-semibold text-ink/60">
+                    {isTrialing ? "Fecha exacta de vencimiento" : "Fecha de renovacion"}
+                  </p>
                   <p className="mt-2 text-2xl font-bold">
-                    {formatDate(subscription?.current_period_end)}
+                    {formatDate(isTrialing ? subscription?.trial_end : subscription?.current_period_end)}
                   </p>
                 </article>
               </div>
